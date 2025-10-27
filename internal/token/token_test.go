@@ -49,7 +49,7 @@ func TestGet(t *testing.T) {
 
 			if tt.wantErrType != nil {
 				if err == nil || !errors.Is(err, tt.wantErrType) {
-					t.Errorf("Get() error = %v, want error type %v", err, tt.wantErrType)
+					t.Errorf("Get() error = %v, want error type = %v", err, tt.wantErrType)
 				}
 			} else {
 				if err != nil {

@@ -136,7 +136,7 @@ func Download(config models.DownloadConfig) error {
 			return fmt.Errorf("%w: %w", errFailedToDownloadVideo, err)
 		}
 
-		// Fallthrough if type is unkown and try as channel again
+		// Fallthrough if type is unknown and try as channel again
 		fallthrough
 	case channelType:
 		downloader := newChannelDownloader(config, client)
@@ -145,6 +145,7 @@ func Download(config models.DownloadConfig) error {
 			if downloadType == unknownType {
 				return fmt.Errorf("%w", errInvalidID)
 			}
+
 			return fmt.Errorf("%w: %w", errFailedToDownloadChannel, err)
 		}
 	}

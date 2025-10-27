@@ -39,6 +39,7 @@ var (
 	errFailedToDownloadVideo   = errors.New("failed to download video")
 	errFailedToExtractType     = errors.New("failed to extract type")
 	errFailedToGetToken        = errors.New("failed to get token")
+	errInvalidID               = errors.New("invalid id")
 	errInvalidURL              = errors.New("invalid url")
 )
 
@@ -126,24 +127,25 @@ func Download(config models.DownloadConfig) error {
 	}
 
 	switch downloadType {
-	case videoType:
+	case videoType, unknownType:
 		downloader := newVideoDownloader(config, videoProgress, client)
-		if err = downloader.downloadVideo(id, true); err != nil {
-			return fmt.Errorf("%w: %w", errFailedToDownloadVideo, err)
-		}
-	case unknownType:
-		// If the type is unknown, we try to download as a video first.
-		downloader := newVideoDownloader(config, videoProgress, client)
+
 		if err = downloader.downloadVideo(id, true); err == nil {
 			return nil
-		} else if errors.Is(err, dir.ErrFailedToCreateFile) {
-			return fmt.Errorf("%w", err)
+		} else if downloadType == videoType || errors.Is(err, dir.ErrFailedToCreateFile) {
+			return fmt.Errorf("%w: %w", errFailedToDownloadVideo, err)
 		}
 
+		// Fallthrough if type is unknown and try as channel again
 		fallthrough
 	case channelType:
 		downloader := newChannelDownloader(config, client)
+
 		if err = downloader.downloadChannel(id); err != nil {
+			if downloadType == unknownType {
+				return fmt.Errorf("%w", errInvalidID)
+			}
+
 			return fmt.Errorf("%w: %w", errFailedToDownloadChannel, err)
 		}
 	}

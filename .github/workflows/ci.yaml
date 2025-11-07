@@ -32,10 +32,10 @@ jobs:
 
           # Check if file is sorted (case-insensitive)
           if sort -cf .dictionaries/project-words.txt; then
-            echo -e "${BOLD_GREEN}✓ .dictionaries/project-words.txt is properly sorted${RESET}"
+            echo -e "${BOLD_GREEN}✓ .cspell_ignored is properly sorted${RESET}"
           else
-            echo -e "${BOLD_RED}Error: .dictionaries/project-words.txt is not sorted alphabetically (case-insensitive)${RESET}"
-            echo -e "${BOLD_YELLOW}To fix this, run: sort -f .dictionaries/project-words.txt -o .dictionaries/project-words.txt${RESET}"
+            echo -e "${BOLD_RED}Error: `.cspell_ignored` is not sorted alphabetically (case-insensitive)${RESET}"
+            echo -e "${BOLD_YELLOW}To fix this, run: bash -c "tr '[:upper:]' '[:lower:]' < .cspell_ignored | sort -f -u -o .cspell_ignored"${RESET}"
             exit 1
           fi
         shell: bash

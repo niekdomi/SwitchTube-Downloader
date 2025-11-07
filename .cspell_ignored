@@ -1,8 +1,8 @@
-# Add here words that are not recognized by the spellchecker but are correct
+# add here words that are not recognized by the spellchecker but are correct
 aurs
-Bühler
-Dominik
-Ewma
+bühler
+dominik
+ewma
 infile
 namequestionmarkgreaterless
 niekdomi
@@ -12,7 +12,7 @@ pkgdir
 pkgname
 pkgrel
 pkgver
-Rbound
+rbound
 stretchr
 swdl
 switchdl

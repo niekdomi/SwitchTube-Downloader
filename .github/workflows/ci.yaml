@@ -11,7 +11,7 @@ on:
 jobs:
   dictionary:
     runs-on: ubuntu-latest
-    name: Check if dictionary is sorted
+    name: Check dictionary sorting
     timeout-minutes: 1
 
     if: ${{ !github.event.pull_request.draft }}
@@ -27,18 +27,17 @@ jobs:
           BOLD_GREEN="\033[1;32m"
           RESET="\033[0m"
 
-
           if [ ! -f ".cspell_ignored" ]; then
             echo -e "${BOLD_RED}Error: .cspell_ignored not found${RESET}"
             exit 1
           fi
 
-          # Check if file is sorted (case-insensitive)
-          if sort -cf .cspell_ignored; then
+          # Check if file is sorted (case-insensitive, using C locale for consistency)
+          if LC_ALL=C sort -C -f .cspell_ignored; then
             echo -e "${BOLD_GREEN}✓ .cspell_ignored is properly sorted${RESET}"
           else
             echo -e "${BOLD_RED}Error: .cspell_ignored is not sorted alphabetically (case-insensitive)${RESET}"
-            echo -e "${BOLD_YELLOW}To fix this, run: make sort-dictionary{RESET}"
+            echo -e "${BOLD_YELLOW}To fix this, run: LC_ALL=C sort -f -o .cspell_ignored .cspell_ignored${RESET}"
             exit 1
           fi
         shell: bash

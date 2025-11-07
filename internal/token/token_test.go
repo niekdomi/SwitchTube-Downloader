@@ -285,23 +285,8 @@ func TestCreate(t *testing.T) {
 			wantToken: "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
 		},
 		{
-			name:      "token with special characters",
-			input:     "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE\n",
-			wantToken: "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
-		},
-		{
-			name:      "long token",
-			input:     "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE\n",
-			wantToken: "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
-		},
-		{
 			name:      "token with newlines",
 			input:     "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE\nwith\nnewlines\n",
-			wantToken: "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
-		},
-		{
-			name:      "token with tabs",
-			input:     "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE\n",
 			wantToken: "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
 		},
 	}

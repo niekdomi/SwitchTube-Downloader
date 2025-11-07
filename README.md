@@ -5,7 +5,7 @@ to easily download videos from [SwitchTube](https://tube.switch.ch/).
 
 ## Getting Started
 
-1. **Download the binary**: Visit the [releases page](https://github.com/domi413/SwitchTube-Downloader/releases)
+1. **Download the binary**: Visit the [releases page](https://github.com/niekdomi/SwitchTube-Downloader/releases)
    to obtain the appropriate binary for your operating system (Linux, MacOS,
    Windows).
 
@@ -163,16 +163,16 @@ prompt, so use it carefully.
 
 ## Why to choose (this) SwitchTube-Downloader?
 
-| Feature                        | [SwitchTube-Downloader](https://github.com/domi413/SwitchTube-Downloader) |
-| ------------------------------ | ------------------------------------------------------------------------- |
-| **Binary Size**                | 7.2MB (light)                                                             |
-| **Store Access Token**         | Automatic storage                                                         |
-| **Encrypted Access Token**     | Secure encryption                                                         |
-| **Intuitive Downloads**        | One simple command                                                        |
-| **Video download**             | Supported                                                                 |
-| **Channel download**           | Supported                                                                 |
-| **Select videos of a channel** | Supported                                                                 |
-| **Support ID and URL**         | Supported                                                                 |
+| Feature                        | [SwitchTube-Downloader](https://github.com/niekdomi/SwitchTube-Downloader) |
+| ------------------------------ | -------------------------------------------------------------------------- |
+| **Binary Size**                | 7.2MB (light)                                                              |
+| **Store Access Token**         | Automatic storage                                                          |
+| **Encrypted Access Token**     | Secure encryption                                                          |
+| **Intuitive Downloads**        | One simple command                                                         |
+| **Video download**             | Supported                                                                  |
+| **Channel download**           | Supported                                                                  |
+| **Select videos of a channel** | Supported                                                                  |
+| **Support ID and URL**         | Supported                                                                  |
 
 ## FAQ
 

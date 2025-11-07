@@ -24,7 +24,7 @@ archives:
 
 release:
   github:
-    owner: domi413
+    owner: niekdomi
     name: SwitchTube-Downloader
 
   mode: replace
@@ -67,7 +67,7 @@ aurs:
     private_key: "{{ .Env.AUR_KEY }}"
 
     commit_author:
-      name: "domi413"
+      name: "niekdomi"
       email: "dom.buehler@outlook.com"
 
     package: |-

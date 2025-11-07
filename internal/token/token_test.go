@@ -1,13 +1,62 @@
 package token
 
 import (
-	"errors"
 	"os"
 	"os/user"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/zalando/go-keyring"
 )
+
+func setupTestKeyring(t *testing.T, setupToken bool, tokenValue string) *Manager {
+	t.Helper()
+	keyring.MockInit()
+
+	tokenMgr := NewTokenManager()
+
+	if setupToken {
+		currentUser, err := user.Current()
+		require.NoError(t, err)
+		err = keyring.Set(serviceName, currentUser.Username, tokenValue)
+		require.NoError(t, err)
+	}
+
+	return tokenMgr
+}
+
+func setupTestInput(t *testing.T, input string) func() {
+	t.Helper()
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "test-input")
+	require.NoError(t, err)
+
+	_, err = tmpFile.WriteString(input)
+	require.NoError(t, err)
+
+	_, err = tmpFile.Seek(0, 0)
+	require.NoError(t, err)
+
+	oldStdin := os.Stdin
+	os.Stdin = tmpFile
+
+	return func() {
+		os.Stdin = oldStdin
+
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+	}
+}
+
+func suppressStdout(t *testing.T) func() {
+	t.Helper()
+
+	oldStdout := os.Stdout
+	os.Stdout, _ = os.Open(os.DevNull)
+
+	return func() { os.Stdout = oldStdout }
+}
 
 func TestGet(t *testing.T) {
 	tests := []struct {
@@ -32,109 +81,71 @@ func TestGet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			keyring.MockInit()
-
-			tokenMgr := NewTokenManager()
-
-			if tt.setupToken {
-				currentUser, userErr := user.Current()
-				if userErr != nil {
-					t.Fatalf("Failed to get current user: %v", userErr)
-				}
-
-				keyring.Set(serviceName, currentUser.Username, tt.tokenValue)
-			}
+			tokenMgr := setupTestKeyring(t, tt.setupToken, tt.tokenValue)
 
 			token, err := tokenMgr.Get()
 
 			if tt.wantErrType != nil {
-				if err == nil || !errors.Is(err, tt.wantErrType) {
-					t.Errorf("Get() error = %v, want error type = %v", err, tt.wantErrType)
-				}
+				assert.ErrorIs(t, err, tt.wantErrType)
 			} else {
-				if err != nil {
-					t.Errorf("Get() error = %v, want nil", err)
-				}
-
-				if token != tt.wantToken {
-					t.Errorf("Get() token = %v, want %v", token, tt.wantToken)
-				}
+				require.NoError(t, err)
+				assert.Equal(t, tt.wantToken, token)
 			}
 		})
 	}
 }
 
+func TestGet_KeyringError(t *testing.T) {
+	tokenMgr := setupTestKeyring(t, false, "")
+
+	_, err := user.Current()
+	require.NoError(t, err)
+
+	_, err = tokenMgr.Get()
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errNoTokenFound)
+}
+
 func TestSet(t *testing.T) {
-	// Capture stdout to hide prompts
-	oldStdout := os.Stdout
-	os.Stdout, _ = os.Open(os.DevNull)
-
-	defer func() { os.Stdout = oldStdout }()
-
 	tests := []struct {
 		name          string
 		existingToken bool
+		input         string
 		wantErr       bool
 	}{
 		{
 			name:    "new token creation",
+			input:   "new-token\n",
 			wantErr: false,
 		},
 		{
 			name:          "replace existing token - declined",
 			existingToken: true,
+			input:         "n\n",
 			wantErr:       true,
 		},
 		{
 			name:    "empty token input",
+			input:   "\n",
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			keyring.MockInit()
+			restore := suppressStdout(t)
+			defer restore()
 
-			tokenMgr := NewTokenManager()
+			tokenMgr := setupTestKeyring(t, tt.existingToken, "existing-token")
 
-			if tt.existingToken {
-				currentUser, userErr := user.Current()
-				if userErr != nil {
-					t.Fatalf("Failed to get current user: %v", userErr)
-				}
+			restoreInput := setupTestInput(t, tt.input)
+			defer restoreInput()
 
-				keyring.Set(serviceName, currentUser.Username, "existing-token")
-			}
-
-			var input string
-
-			switch tt.name {
-			case "replace existing token - declined":
-				input = "n\n"
-			case "empty token input":
-				input = "\n"
-			default:
-				input = "new-token\n"
-			}
-
-			tmpFile, err := os.CreateTemp(t.TempDir(), "test-input")
-			if err != nil {
-				t.Fatalf("Failed to create temp file: %v", err)
-			}
-			defer os.Remove(tmpFile.Name())
-
-			tmpFile.WriteString(input)
-			tmpFile.Seek(0, 0)
-
-			oldStdin := os.Stdin
-			os.Stdin = tmpFile
-
-			defer func() { os.Stdin = oldStdin }()
-
-			if err = tokenMgr.Set(); tt.wantErr && err == nil {
-				t.Error("Set() expected error but got nil")
-			} else if !tt.wantErr && err != nil {
-				t.Errorf("Set() error = %v, want nil", err)
+			err := tokenMgr.Set()
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -159,37 +170,27 @@ func TestDelete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			keyring.MockInit()
+			tokenMgr := setupTestKeyring(t, tt.setupToken, "test-token")
 
-			tokenMgr := NewTokenManager()
-
-			if tt.setupToken {
-				currentUser, userErr := user.Current()
-				if userErr != nil {
-					t.Fatalf("Failed to get current user: %v", userErr)
-				}
-
-				keyring.Set(serviceName, currentUser.Username, "test-token")
-			}
-
-			if err := tokenMgr.Delete(); tt.wantErrType != nil {
-				if err == nil || !errors.Is(err, tt.wantErrType) {
-					t.Errorf("Delete() error = %v, want error type %v", err, tt.wantErrType)
-				}
-			} else if err != nil {
-				t.Errorf("Delete() error = %v, want nil", err)
+			err := tokenMgr.Delete()
+			if tt.wantErrType != nil {
+				assert.ErrorIs(t, err, tt.wantErrType)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}
 }
 
+func TestManager_GetUserError(t *testing.T) {
+	tokenMgr := setupTestKeyring(t, false, "")
+
+	_, err := tokenMgr.Get()
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errNoTokenFound)
+}
+
 func TestCreate(t *testing.T) {
-	// Capture stdout to hide prompts
-	oldStdout := os.Stdout
-	os.Stdout, _ = os.Open(os.DevNull)
-
-	defer func() { os.Stdout = oldStdout }()
-
 	tests := []struct {
 		name        string
 		input       string
@@ -228,41 +229,36 @@ func TestCreate(t *testing.T) {
 			input:     "very-long-token-with-many-characters-1234567890\n",
 			wantToken: "very-long-token-with-many-characters-1234567890",
 		},
+		{
+			name:      "token with newlines",
+			input:     "token\nwith\nnewlines\n",
+			wantToken: "token",
+		},
+		{
+			name:      "token with tabs",
+			input:     "token\twith\ttabs\n",
+			wantToken: "token\twith\ttabs",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			restore := suppressStdout(t)
+			defer restore()
+
 			tokenMgr := NewTokenManager()
 
-			tmpFile, err := os.CreateTemp(t.TempDir(), "test-input")
-			if err != nil {
-				t.Fatalf("Failed to create temp file: %v", err)
-			}
-			defer os.Remove(tmpFile.Name())
-
-			if _, err = tmpFile.WriteString(tt.input); err != nil {
-				t.Fatalf("Failed to write to temp file: %v", err)
-			}
-
-			tmpFile.Seek(0, 0)
-
-			oldStdin := os.Stdin
-			os.Stdin = tmpFile
-
-			defer func() { os.Stdin = oldStdin }()
+			restoreInput := setupTestInput(t, tt.input)
+			defer restoreInput()
 
 			token, err := tokenMgr.create()
 
-			if token != tt.wantToken {
-				t.Errorf("create() token = %v, want %v", token, tt.wantToken)
-			}
+			assert.Equal(t, tt.wantToken, token)
 
 			if tt.wantErrType != nil {
-				if err == nil || !errors.Is(err, tt.wantErrType) {
-					t.Errorf("create() error = %v, want error type %v", err, tt.wantErrType)
-				}
-			} else if err != nil {
-				t.Errorf("create() error = %v, want nil", err)
+				assert.ErrorIs(t, err, tt.wantErrType)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}

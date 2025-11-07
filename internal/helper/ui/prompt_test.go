@@ -3,8 +3,10 @@ package ui
 import (
 	"fmt"
 	"os"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInput(t *testing.T) {
@@ -48,54 +50,14 @@ func TestInput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create temp file for stdin simulation
-			tmpFile, err := os.CreateTemp(t.TempDir(), "test-input")
-			if err != nil {
-				t.Fatalf("Failed to create temp file: %v", err)
-			}
-			defer os.Remove(tmpFile.Name())
+			restore, readOutput := SetupTestIO(t, tt.input)
+			defer restore()
 
-			// Write test input
-			if _, err = tmpFile.WriteString(tt.input); err != nil {
-				t.Fatalf("Failed to write to temp file: %v", err)
-			}
-
-			tmpFile.Seek(0, 0)
-
-			// Redirect stdin
-			oldStdin := os.Stdin
-			os.Stdin = tmpFile
-
-			defer func() { os.Stdin = oldStdin }()
-
-			// Capture stdout to verify prompt is printed
-			oldStdout := os.Stdout
-			r, w, _ := os.Pipe()
-			os.Stdout = w
-
-			defer func() { os.Stdout = oldStdout }()
-
-			// Test the function
 			result := Input(tt.prompt)
+			capturedOutput := readOutput()
 
-			// Close writer and read captured output
-			w.Close()
-
-			output := make([]byte, 1000)
-			n, _ := r.Read(output)
-			capturedOutput := string(output[:n])
-
-			if result != tt.want {
-				t.Errorf("Input() = %v, want %v", result, tt.want)
-			}
-
-			if !strings.Contains(capturedOutput, tt.prompt) {
-				t.Errorf(
-					"Input() did not print prompt. Got: %v, expected to contain: %v",
-					capturedOutput,
-					tt.prompt,
-				)
-			}
+			assert.Equal(t, tt.want, result)
+			assert.Contains(t, capturedOutput, tt.prompt)
 		})
 	}
 }
@@ -163,7 +125,7 @@ func TestConfirm(t *testing.T) {
 			want:   false,
 		},
 		{
-			name:   "invalid input defaults to no (non ascii)",
+			name:   "invalid input defaults to no",
 			format: "Continue?",
 			input:  "💀\n",
 			want:   false,
@@ -184,7 +146,7 @@ func TestConfirm(t *testing.T) {
 		},
 		{
 			name:   "format with no arguments but percent sign",
-			format: "Continue with 100% certainty?",
+			format: "Continue with 100%% certainty?",
 			input:  "yes\n",
 			want:   true,
 		},
@@ -192,34 +154,9 @@ func TestConfirm(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create temp file for stdin simulation
-			tmpFile, err := os.CreateTemp(t.TempDir(), "test-input")
-			if err != nil {
-				t.Fatalf("Failed to create temp file: %v", err)
-			}
-			defer os.Remove(tmpFile.Name())
+			restore, readOutput := SetupTestIO(t, tt.input)
+			defer restore()
 
-			// Write test input
-			if _, err = tmpFile.WriteString(tt.input); err != nil {
-				t.Fatalf("Failed to write to temp file: %v", err)
-			}
-
-			tmpFile.Seek(0, 0)
-
-			// Redirect stdin
-			oldStdin := os.Stdin
-			os.Stdin = tmpFile
-
-			defer func() { os.Stdin = oldStdin }()
-
-			// Capture stdout to verify prompt is printed
-			oldStdout := os.Stdout
-			r, w, _ := os.Pipe()
-			os.Stdout = w
-
-			defer func() { os.Stdout = oldStdout }()
-
-			// Test the function
 			var result bool
 			if tt.args != nil {
 				result = Confirm(tt.format, tt.args...)
@@ -227,18 +164,10 @@ func TestConfirm(t *testing.T) {
 				result = Confirm("%s", tt.format)
 			}
 
-			// Close writer and read captured output
-			w.Close()
+			capturedOutput := readOutput()
 
-			output := make([]byte, 1000)
-			n, _ := r.Read(output)
-			capturedOutput := string(output[:n])
+			assert.Equal(t, tt.want, result)
 
-			if result != tt.want {
-				t.Errorf("Confirm() = %v, want %v", result, tt.want)
-			}
-
-			// Build expected prompt
 			var expectedBase string
 			if tt.args != nil {
 				expectedBase = fmt.Sprintf(tt.format, tt.args...)
@@ -247,88 +176,41 @@ func TestConfirm(t *testing.T) {
 			}
 
 			expectedPrompt := expectedBase + " (y/N): "
-
-			if !strings.Contains(capturedOutput, expectedPrompt) {
-				t.Errorf(
-					"Confirm() did not print expected prompt. Got: %v, expected to contain: %v",
-					capturedOutput,
-					expectedPrompt,
-				)
-			}
+			assert.Contains(t, capturedOutput, expectedPrompt)
 		})
 	}
 }
 
 func TestConfirmPromptFormat(t *testing.T) {
-	// Test that Confirm appends the correct suffix to the prompt
-	tmpFile, err := os.CreateTemp(t.TempDir(), "test-input")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	defer os.Remove(tmpFile.Name())
-
-	tmpFile.WriteString("n\n")
-	tmpFile.Seek(0, 0)
-
-	oldStdin := os.Stdin
-	os.Stdin = tmpFile
-
-	defer func() { os.Stdin = oldStdin }()
-
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	defer func() { os.Stdout = oldStdout }()
+	restore, readOutput := SetupTestIO(t, "n\n")
+	defer restore()
 
 	Confirm("Test prompt")
 
-	w.Close()
-
-	output := make([]byte, 1000)
-	n, _ := r.Read(output)
-	capturedOutput := string(output[:n])
+	capturedOutput := readOutput()
 
 	expectedPrompt := "Test prompt (y/N): "
-	if capturedOutput != expectedPrompt {
-		t.Errorf("Confirm() prompt format = %v, want %v", capturedOutput, expectedPrompt)
-	}
+	assert.Equal(t, expectedPrompt, capturedOutput)
 }
 
 func TestInputEmptyPrompt(t *testing.T) {
 	tmpFile, err := os.CreateTemp(t.TempDir(), "test-input")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
+	require.NoError(t, err)
+
 	defer os.Remove(tmpFile.Name())
 
-	tmpFile.WriteString("test\n")
-	tmpFile.Seek(0, 0)
+	_, err = tmpFile.WriteString("test\n")
+	require.NoError(t, err)
+
+	_, err = tmpFile.Seek(0, 0)
+	require.NoError(t, err)
 
 	oldStdin := os.Stdin
 	os.Stdin = tmpFile
 
 	defer func() { os.Stdin = oldStdin }()
 
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	defer func() { os.Stdout = oldStdout }()
-
 	result := Input("")
 
-	w.Close()
-
-	output := make([]byte, 1000)
-	n, _ := r.Read(output)
-	capturedOutput := string(output[:n])
-
-	if result != "test" {
-		t.Errorf("Input() = %v, want test", result)
-	}
-
-	if capturedOutput != "" {
-		t.Errorf("Input() with empty prompt should print nothing, got: %v", capturedOutput)
-	}
+	assert.Equal(t, "test", result)
 }

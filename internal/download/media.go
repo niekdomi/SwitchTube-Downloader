@@ -62,28 +62,6 @@ func NewClient(tm *token.Manager) *Client {
 	}
 }
 
-// makeRequest makes an authenticated HTTP request.
-func (c *Client) makeRequest(url string) (*http.Response, error) {
-	apiToken, err := c.tokenManager.Get()
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errFailedToGetToken, err)
-	}
-
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errFailedToCreateRequest, err)
-	}
-
-	req.Header.Set(headerAuthorization, "Token "+apiToken)
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errFailedToCreateRequest, err)
-	}
-
-	return resp, nil
-}
-
 // makeRequest makes an authenticated HTTP request and decodes the response.
 func (c *Client) makeJSONRequest(url string, target any) error {
 	resp, err := c.makeRequest(url)
@@ -109,6 +87,28 @@ func (c *Client) makeJSONRequest(url string, target any) error {
 	}
 
 	return nil
+}
+
+// makeRequest makes an authenticated HTTP request.
+func (c *Client) makeRequest(url string) (*http.Response, error) {
+	apiToken, err := c.tokenManager.Get()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errFailedToGetToken, err)
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errFailedToCreateRequest, err)
+	}
+
+	req.Header.Set(headerAuthorization, "Token "+apiToken)
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errFailedToCreateRequest, err)
+	}
+
+	return resp, nil
 }
 
 // Download initiates the download process based on the provided configuration.

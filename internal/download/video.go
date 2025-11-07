@@ -51,6 +51,42 @@ func newVideoDownloader(
 	}
 }
 
+// downloadProcess handles the actual file download.
+func (vd *videoDownloader) downloadProcess(endpoint string, file *os.File) error {
+	fullURL, err := url.JoinPath(baseURL, endpoint)
+	if err != nil {
+		return fmt.Errorf("%w: %w", errFailedToConstructURL, err)
+	}
+
+	resp, err := vd.client.makeRequest(fullURL)
+	if err != nil {
+		return fmt.Errorf("%w: %w", errFailedToFetchVideoStream, err)
+	}
+
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Warning: failed to close response body: %v\n", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%w: status %d: %s",
+			errHTTPNotOK,
+			resp.StatusCode,
+			http.StatusText(resp.StatusCode))
+	}
+
+	currentItem := max(vd.progress.CurrentItem, 1)
+	totalItems := max(vd.progress.TotalItems, 1)
+
+	err = ui.ProgressBar(resp.Body, file, resp.ContentLength, file.Name(), currentItem, totalItems)
+	if err != nil {
+		return fmt.Errorf("%w: %w", errFailedToCopyVideoData, err)
+	}
+
+	return nil
+}
+
 // downloadVideo downloads a video.
 func (vd *videoDownloader) downloadVideo(videoID string, checkExists bool) error {
 	video, err := vd.getMetadata(videoID)
@@ -114,40 +150,4 @@ func (vd *videoDownloader) getVariants(videoID string) ([]videoVariant, error) {
 	}
 
 	return variants, nil
-}
-
-// downloadProcess handles the actual file download.
-func (vd *videoDownloader) downloadProcess(endpoint string, file *os.File) error {
-	fullURL, err := url.JoinPath(baseURL, endpoint)
-	if err != nil {
-		return fmt.Errorf("%w: %w", errFailedToConstructURL, err)
-	}
-
-	resp, err := vd.client.makeRequest(fullURL)
-	if err != nil {
-		return fmt.Errorf("%w: %w", errFailedToFetchVideoStream, err)
-	}
-
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			fmt.Printf("Warning: failed to close response body: %v\n", err)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%w: status %d: %s",
-			errHTTPNotOK,
-			resp.StatusCode,
-			http.StatusText(resp.StatusCode))
-	}
-
-	currentItem := max(vd.progress.CurrentItem, 1)
-	totalItems := max(vd.progress.TotalItems, 1)
-
-	err = ui.ProgressBar(resp.Body, file, resp.ContentLength, file.Name(), currentItem, totalItems)
-	if err != nil {
-		return fmt.Errorf("%w: %w", errFailedToCopyVideoData, err)
-	}
-
-	return nil
 }

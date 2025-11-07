@@ -43,6 +43,24 @@ func NewTokenManager() *Manager {
 	}
 }
 
+// Delete removes the access token from the system keyring.
+func (tm *Manager) Delete() error {
+	userName, err := user.Current()
+	if err != nil {
+		return fmt.Errorf("%w: %w", errFailedToGetUser, err)
+	}
+
+	if err = keyring.Delete(tm.keyringService, userName.Username); err != nil {
+		if errors.Is(err, keyring.ErrNotFound) {
+			return fmt.Errorf("%w for %s", errNoTokenFoundDelete, tm.keyringService)
+		}
+
+		return fmt.Errorf("%w: %w", errFailedToDelete, err)
+	}
+
+	return nil
+}
+
 // Get retrieves the access token from the system keyring.
 func (tm *Manager) Get() (string, error) {
 	userName, err := user.Current()
@@ -91,24 +109,6 @@ func (tm *Manager) Set() error {
 
 	if err = keyring.Set(tm.keyringService, userName.Username, token); err != nil {
 		return fmt.Errorf("%w: %w", errFailedToStore, err)
-	}
-
-	return nil
-}
-
-// Delete removes the access token from the system keyring.
-func (tm *Manager) Delete() error {
-	userName, err := user.Current()
-	if err != nil {
-		return fmt.Errorf("%w: %w", errFailedToGetUser, err)
-	}
-
-	if err = keyring.Delete(tm.keyringService, userName.Username); err != nil {
-		if errors.Is(err, keyring.ErrNotFound) {
-			return fmt.Errorf("%w for %s", errNoTokenFoundDelete, tm.keyringService)
-		}
-
-		return fmt.Errorf("%w: %w", errFailedToDelete, err)
 	}
 
 	return nil

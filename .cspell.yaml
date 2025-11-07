@@ -3,7 +3,7 @@ version: "0.2"
 
 dictionaryDefinitions:
   - name: project-words
-    path: ./.dictionaries/project-words.txt
+    path: ./.cspell_ignored
 
 dictionaries:
   - go

@@ -27,7 +27,6 @@ var (
 	errFailedToFetchVideoStream = errors.New("failed to fetch video stream")
 	errFailedToGetVideoInfo     = errors.New("failed to get video information")
 	errFailedToGetVideoVariants = errors.New("failed to get video variants")
-	errHTTPNotOK                = errors.New("HTTP request failed with non-OK status")
 	errNoVariantsFound          = errors.New("no video variants found")
 )
 

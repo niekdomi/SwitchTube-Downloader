@@ -80,7 +80,7 @@ jobs:
           check-latest: true
 
       - name: Run tests and generate coverage
-        run: go test $(go list ./... | grep -v -E '/cmd|/models') -coverprofile=coverage.out && go tool cover -func=coverage.out | grep total
+        run: go test -coverprofile=coverage.out ./internal/... && go tool cover -func=coverage.out | grep total
 
   build:
     strategy:

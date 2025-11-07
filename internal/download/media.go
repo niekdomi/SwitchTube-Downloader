@@ -39,6 +39,7 @@ var (
 	errFailedToDownloadVideo   = errors.New("failed to download video")
 	errFailedToExtractType     = errors.New("failed to extract type")
 	errFailedToGetToken        = errors.New("failed to get token")
+	errHTTPNotOK               = errors.New("HTTP request failed with non-OK status")
 	errInvalidID               = errors.New("invalid id")
 	errInvalidURL              = errors.New("invalid url")
 )

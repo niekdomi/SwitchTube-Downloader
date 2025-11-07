@@ -120,6 +120,7 @@ func (tm *Manager) create() (string, error) {
 	fmt.Printf("Create a new access token and paste it below\n\n")
 
 	token := ui.Input("Enter your access token: ")
+	// TODO: Validate token
 	if token == "" {
 		return "", errTokenEmpty
 	}

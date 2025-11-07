@@ -163,23 +163,16 @@ prompt, so use it carefully.
 
 ## Why to choose (this) SwitchTube-Downloader?
 
-While other tools exist for downloading SwitchTube content,
-**SwitchTube-Downloader** stands out for its user-friendly interface, and
-advanced features. Here’s how it compares:
-
-| Feature                        | [SwitchTube-Downloader](https://github.com/domi413/SwitchTube-Downloader) | [switchtube-dl](https://github.com/panmona/switchtube-dl) | [switchtube-rs](https://github.com/jeremystucki/switchtube-rs) |
-| ------------------------------ | ------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------- |
-| **Binary Size**                | 7.2MB (light) ✅                                                          | 54.47MB (Bulky)                                           | No binary release                                              |
-| **Store Access Token**         | Automatic storage ✅                                                      | Manual configuration                                      | Not supported                                                  |
-| **Encrypted Access Token**     | Secure encryption ✅                                                      | No encryption                                             | Not supported                                                  |
-| **Intuitive Downloads**        | One simple command ✅                                                     | Separate commands for videos and channels                 | Complex CLI usage                                              |
-| **Video download**             | Supported ✅                                                              | Supported ✅                                              | Not supported                                                  |
-| **Channel download**           | Supported ✅                                                              | Supported ✅                                              | Supported ✅                                                   |
-| **Select videos of a channel** | Supported ✅                                                              | Supported ✅                                              | Not supported                                                  |
-| **Support ID and URL**         | Supported ✅                                                              | Not supported                                             | Not supported                                                  |
-
-Honorable mention: There is yet another SwitchTube downloader also written in
-go: [switchdl](https://github.com/Erl-koenig/switchdl)
+| Feature                        | [SwitchTube-Downloader](https://github.com/domi413/SwitchTube-Downloader) |
+| ------------------------------ | ------------------------------------------------------------------------- |
+| **Binary Size**                | 7.2MB (light)                                                             |
+| **Store Access Token**         | Automatic storage                                                         |
+| **Encrypted Access Token**     | Secure encryption                                                         |
+| **Intuitive Downloads**        | One simple command                                                        |
+| **Video download**             | Supported                                                                 |
+| **Channel download**           | Supported                                                                 |
+| **Select videos of a channel** | Supported                                                                 |
+| **Support ID and URL**         | Supported                                                                 |
 
 ## FAQ
 

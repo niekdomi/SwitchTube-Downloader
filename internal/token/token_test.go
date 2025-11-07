@@ -115,7 +115,7 @@ func TestSet(t *testing.T) {
 	}{
 		{
 			name:    "new token creation",
-			input:   "new-token\n",
+			input:   "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE\n",
 			wantErr: false,
 		},
 		{
@@ -182,6 +182,71 @@ func TestDelete(t *testing.T) {
 	}
 }
 
+func TestValidateToken(t *testing.T) {
+	tests := []struct {
+		name    string
+		token   string
+		wantErr bool
+	}{
+		{
+			name:    "valid token",
+			token:   "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
+			wantErr: false,
+		},
+		{
+			name:    "too short",
+			token:   "short",
+			wantErr: true,
+		},
+		{
+			name:    "too long",
+			token:   "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDEF",
+			wantErr: true,
+		},
+		{
+			name:    "contains space",
+			token:   "abcdefghijklmnopqrstuvwxyz0123456789- _ABCD",
+			wantErr: true,
+		},
+		{
+			name:    "contains special char",
+			token:   "abcdefghijklmnopqrstuvwxyz0123456789💀@_ABCD",
+			wantErr: true,
+		},
+		{
+			name:    "contains tabs",
+			token:   "abcdefghijklmnopqrstuvwxyz0123456789-\tABCDE",
+			wantErr: true,
+		},
+		{
+			name:    "empty string",
+			token:   "",
+			wantErr: true,
+		},
+		{
+			name:    "all numbers",
+			token:   "0123456789012345678901234567890123456789012",
+			wantErr: false,
+		},
+		{
+			name:    "all letters",
+			token:   "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateToken(tt.token)
+			if tt.wantErr {
+				assert.ErrorIs(t, err, errInvalidToken)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestManager_GetUserError(t *testing.T) {
 	tokenMgr := setupTestKeyring(t, false, "")
 
@@ -199,8 +264,8 @@ func TestCreate(t *testing.T) {
 	}{
 		{
 			name:      "valid token input",
-			input:     "valid-token-123\n",
-			wantToken: "valid-token-123",
+			input:     "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE\n",
+			wantToken: "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
 		},
 		{
 			name:        "empty token input",
@@ -216,28 +281,28 @@ func TestCreate(t *testing.T) {
 		},
 		{
 			name:      "token with leading/trailing whitespace",
-			input:     "  token-with-spaces   \n",
-			wantToken: "token-with-spaces",
+			input:     "  abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE  \n",
+			wantToken: "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
 		},
 		{
 			name:      "token with special characters",
-			input:     "token-123_ABC.xyz\n",
-			wantToken: "token-123_ABC.xyz",
+			input:     "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE\n",
+			wantToken: "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
 		},
 		{
 			name:      "long token",
-			input:     "very-long-token-with-many-characters-1234567890\n",
-			wantToken: "very-long-token-with-many-characters-1234567890",
+			input:     "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE\n",
+			wantToken: "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
 		},
 		{
 			name:      "token with newlines",
-			input:     "token\nwith\nnewlines\n",
-			wantToken: "token",
+			input:     "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE\nwith\nnewlines\n",
+			wantToken: "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
 		},
 		{
 			name:      "token with tabs",
-			input:     "token\twith\ttabs\n",
-			wantToken: "token\twith\ttabs",
+			input:     "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE\n",
+			wantToken: "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
 		},
 	}
 

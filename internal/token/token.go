@@ -16,6 +16,8 @@ const (
 	createAccessTokenURL = "https://tube.switch.ch/access_tokens"
 )
 
+const accessTokenLength = 43
+
 var (
 	// ErrTokenAlreadyExists is returned when trying to set a token that already
 	// exists in the keyring.
@@ -25,6 +27,7 @@ var (
 	errFailedToGetUser    = errors.New("failed to get current user")
 	errFailedToRetrieve   = errors.New("failed to retrieve token from keyring")
 	errFailedToStore      = errors.New("failed to store token in keyring")
+	errInvalidToken       = errors.New("invalid token provided")
 	errNoTokenFoundDelete = errors.New("no token found in keyring")
 	errNoTokenFound       = errors.New("no token found in keyring - run 'token set' first")
 	errTokenEmpty         = errors.New("token cannot be empty")
@@ -120,10 +123,37 @@ func (tm *Manager) create() (string, error) {
 	fmt.Printf("Create a new access token and paste it below\n\n")
 
 	token := ui.Input("Enter your access token: ")
-	// TODO: Validate token
 	if token == "" {
 		return "", errTokenEmpty
 	}
 
+	if errors.Is(validateToken(token), errInvalidToken) {
+		return "", errInvalidToken
+	}
+
 	return token, nil
+}
+
+// validateToken checks if the the token passed is valid.
+//
+// A token has following constraints:
+//   - Length: 43 characters
+//   - Valid characters: [ A-Z, a-z, 0-9, -, _ ]
+//
+//nolint:cyclop
+func validateToken(token string) error {
+	if len(token) != accessTokenLength {
+		return errInvalidToken
+	}
+
+	for _, c := range token {
+		if (c < 'a' || c > 'z') &&
+			(c < 'A' || c > 'Z') &&
+			(c < '0' || c > '9') &&
+			c != '-' && c != '_' {
+			return errInvalidToken
+		}
+	}
+
+	return nil
 }

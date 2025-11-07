@@ -39,6 +39,7 @@ var (
 	errFailedToDownloadVideo   = errors.New("failed to download video")
 	errFailedToExtractType     = errors.New("failed to extract type")
 	errFailedToGetToken        = errors.New("failed to get token")
+	errHTTPNotOK               = errors.New("HTTP request failed with non-OK status")
 	errInvalidID               = errors.New("invalid id")
 	errInvalidURL              = errors.New("invalid url")
 )
@@ -60,28 +61,6 @@ func NewClient(tm *token.Manager) *Client {
 			Jar:           nil,
 		},
 	}
-}
-
-// makeRequest makes an authenticated HTTP request.
-func (c *Client) makeRequest(url string) (*http.Response, error) {
-	apiToken, err := c.tokenManager.Get()
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errFailedToGetToken, err)
-	}
-
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errFailedToCreateRequest, err)
-	}
-
-	req.Header.Set(headerAuthorization, "Token "+apiToken)
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errFailedToCreateRequest, err)
-	}
-
-	return resp, nil
 }
 
 // makeRequest makes an authenticated HTTP request and decodes the response.
@@ -109,6 +88,28 @@ func (c *Client) makeJSONRequest(url string, target any) error {
 	}
 
 	return nil
+}
+
+// makeRequest makes an authenticated HTTP request.
+func (c *Client) makeRequest(url string) (*http.Response, error) {
+	apiToken, err := c.tokenManager.Get()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errFailedToGetToken, err)
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errFailedToCreateRequest, err)
+	}
+
+	req.Header.Set(headerAuthorization, "Token "+apiToken)
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errFailedToCreateRequest, err)
+	}
+
+	return resp, nil
 }
 
 // Download initiates the download process based on the provided configuration.

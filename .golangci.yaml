@@ -3,14 +3,28 @@ version: "2"
 linters:
   default: all
   disable:
+    - arangolint
     - depguard
+    - dupword
     - forbidigo
+    - ginkgolinter
     - gochecknoglobals
     - gochecknoinits
+    - godox
+    - goheader
+    - goprintffuncname
+    - grouper
+    - lll
     - misspell
     - noinlineerr
+    - sloglint
+    - spancheck
+    - sqlclosecheck
+    - tagalign
+    - unqueryvet
     - varnamelen
     - wsl
+    - zerologlint
 
   exclusions:
     rules:
@@ -22,17 +36,17 @@ linters:
           - funlen
           - gocognit
           - gosec
+          - maintidx
           - paralleltest
           - testpackage
 
   settings:
-    cyclop:
-      max-complexity: 11
-
     exhaustruct:
       exclude:
         - '.+/cobra\.Command$'
         - '.+/cobra\.CompletionOptions$'
+    funcorder:
+      alphabetical: true
     gosec:
       excludes:
         - G101

@@ -81,6 +81,18 @@ func (cd *channelDownloader) downloadChannel(channelID string) error {
 	return nil
 }
 
+// downloadSelectedVideos downloads the selected videos and reports results.
+func (cd *channelDownloader) downloadSelectedVideos(videos []models.Video, selectedIndices []int) {
+	var failed []string
+
+	toDownload := cd.prepareDownloads(videos, selectedIndices, &failed)
+	if len(toDownload) > 0 {
+		failed = append(failed, cd.processDownloads(videos, toDownload)...)
+	}
+
+	cd.printResults(len(toDownload), len(selectedIndices), failed)
+}
+
 // getMetadata retrieves channel metadata from the API.
 func (cd *channelDownloader) getMetadata(channelID string) (*channelMetadata, error) {
 	fullURL, err := url.JoinPath(baseURL, channelAPI, channelID)
@@ -109,18 +121,6 @@ func (cd *channelDownloader) getVideos(channelID string) ([]models.Video, error)
 	}
 
 	return videos, nil
-}
-
-// downloadSelectedVideos downloads the selected videos and reports results.
-func (cd *channelDownloader) downloadSelectedVideos(videos []models.Video, selectedIndices []int) {
-	var failed []string
-
-	toDownload := cd.prepareDownloads(videos, selectedIndices, &failed)
-	if len(toDownload) > 0 {
-		failed = append(failed, cd.processDownloads(videos, toDownload)...)
-	}
-
-	cd.printResults(len(toDownload), len(selectedIndices), failed)
 }
 
 // prepareDownloads checks which videos need to be downloaded and validates their availability.
@@ -163,6 +163,20 @@ func (cd *channelDownloader) prepareDownloads(
 	return toDownload
 }
 
+// printResults displays the download results summary.
+func (cd *channelDownloader) printResults(downloadCount, selectedCount int, failed []string) {
+	fmt.Printf("\nDownload complete! %d/%d videos successful\n",
+		downloadCount-len(failed), selectedCount)
+
+	if len(failed) > 0 {
+		fmt.Println("Failed downloads:")
+
+		for _, title := range failed {
+			fmt.Printf("  - %s\n", title)
+		}
+	}
+}
+
 // processDownloads performs the actual video downloads and returns failed video titles.
 func (cd *channelDownloader) processDownloads(videos []models.Video, indices []int) []string {
 	var failed []string
@@ -182,18 +196,4 @@ func (cd *channelDownloader) processDownloads(videos []models.Video, indices []i
 	}
 
 	return failed
-}
-
-// printResults displays the download results summary.
-func (cd *channelDownloader) printResults(downloadCount, selectedCount int, failed []string) {
-	fmt.Printf("\nDownload complete! %d/%d videos successful\n",
-		downloadCount-len(failed), selectedCount)
-
-	if len(failed) > 0 {
-		fmt.Println("Failed downloads:")
-
-		for _, title := range failed {
-			fmt.Printf("  - %s\n", title)
-		}
-	}
 }

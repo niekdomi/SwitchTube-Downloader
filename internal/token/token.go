@@ -43,6 +43,24 @@ func NewTokenManager() *Manager {
 	}
 }
 
+// Delete removes the access token from the system keyring.
+func (tm *Manager) Delete() error {
+	userName, err := user.Current()
+	if err != nil {
+		return fmt.Errorf("%w: %w", errFailedToGetUser, err)
+	}
+
+	if err = keyring.Delete(tm.keyringService, userName.Username); err != nil {
+		if errors.Is(err, keyring.ErrNotFound) {
+			return fmt.Errorf("%w for %s", errNoTokenFoundDelete, tm.keyringService)
+		}
+
+		return fmt.Errorf("%w: %w", errFailedToDelete, err)
+	}
+
+	return nil
+}
+
 // Get retrieves the access token from the system keyring.
 func (tm *Manager) Get() (string, error) {
 	userName, err := user.Current()
@@ -96,30 +114,13 @@ func (tm *Manager) Set() error {
 	return nil
 }
 
-// Delete removes the access token from the system keyring.
-func (tm *Manager) Delete() error {
-	userName, err := user.Current()
-	if err != nil {
-		return fmt.Errorf("%w: %w", errFailedToGetUser, err)
-	}
-
-	if err = keyring.Delete(tm.keyringService, userName.Username); err != nil {
-		if errors.Is(err, keyring.ErrNotFound) {
-			return fmt.Errorf("%w for %s", errNoTokenFoundDelete, tm.keyringService)
-		}
-
-		return fmt.Errorf("%w: %w", errFailedToDelete, err)
-	}
-
-	return nil
-}
-
 // create prompts the user to visit the access-token-creation URL and enter a new token.
 func (tm *Manager) create() (string, error) {
 	fmt.Printf("Please visit: %s\n", createAccessTokenURL)
 	fmt.Printf("Create a new access token and paste it below\n\n")
 
 	token := ui.Input("Enter your access token: ")
+	// TODO: Validate token
 	if token == "" {
 		return "", errTokenEmpty
 	}

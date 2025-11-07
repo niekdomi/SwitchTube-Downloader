@@ -1,17 +1,20 @@
 # Add here words that are not recognized by the spellchecker but are correct
 aurs
 Bühler
-niekdomi
 Dominik
 Ewma
 infile
+niekdomi
+ñoño
 pkgdesc
 pkgdir
 pkgname
 pkgrel
 pkgver
 Rbound
+stretchr
 swdl
 switchdl
 switchtube
 vbauerster
+vidéo

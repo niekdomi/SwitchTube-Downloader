@@ -7,7 +7,7 @@ import (
 )
 
 // version is set at build time using ldflags.
-const version = "unknown"
+var version = "unknown"
 
 // init initializes the version command and adds it to the root command.
 func init() {

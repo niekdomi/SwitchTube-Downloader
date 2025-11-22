@@ -89,8 +89,7 @@ jobs:
       - name: Run tests and generate coverage
         run: |
           go test -coverprofile=coverage.out ./internal/...
-          # Generate detailed per-function output, remove prefix, and align columns
-          go tool cover -func=coverage.out | sed 's|switchtube-downloader/|/|g' | awk 'BEGIN {FS="\t"; OFS="\t"} {gsub(/:/, ": ", $1); printf "%-60s %-30s %s\n", $1, $2, $3}' > coverage.txt
+          go tool cover -func=coverage.out > coverage.txt
 
       - name: Convert coverage to Markdown
         if: github.event_name == 'pull_request'
@@ -103,55 +102,43 @@ jobs:
             exit 0
           fi
 
-          echo "### 📊 Test Coverage Report" > "$OUTPUT"
-          echo "" >> "$OUTPUT"
-
-          # Per-File Summary Section
-          echo "#### 📁 Per-File Summary" >> "$OUTPUT"
-          echo "" >> "$OUTPUT"
-          echo '```' >> "$OUTPUT"
-          awk -F'\t' '{
-            split($1, parts, ": ");
-            file = parts[1];
-            pct = $3;
-            sub("%", "", pct);
-            sum[file] += pct;
-            count[file]++;
-          } END {
-            for (f in sum) {
-              printf "%-50s %.1f%%\n", f, sum[f]/count[f];
-            }
-          }' "$INPUT" | sort >> "$OUTPUT"
-          echo '```' >> "$OUTPUT"
-          echo "" >> "$OUTPUT"
-
-          # Detailed Per-Function Section
-          echo "#### 🔍 Per-Function Details" >> "$OUTPUT"
-          echo "" >> "$OUTPUT"
-          echo '```' >> "$OUTPUT"
-          cat "$INPUT" >> "$OUTPUT"
-          echo '```' >> "$OUTPUT"
-          echo "" >> "$OUTPUT"
-
           # Extract total coverage percentage
           TOTAL_LINE=$(grep -i "total" "$INPUT" || echo "")
+          PERCENT="N/A"
           if [[ -n "$TOTAL_LINE" ]]; then
             PERCENT=$(echo "$TOTAL_LINE" | grep -oP '\d+\.\d+%' | tail -1 || echo "N/A")
-            echo "> **Overall Coverage**: $PERCENT" >> "$OUTPUT"
           fi
 
+          # Process coverage data: remove prefix, align columns
+          echo "### 📊 Test Coverage Report" > "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo "> **Overall Coverage**: $PERCENT" >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+
+          # Remove 'switchtube-downloader' prefix and format with alignment
+          sed 's|switchtube-downloader||g' "$INPUT" | \
+            awk '{
+              # Skip total line
+              if ($0 ~ /total:/) next;
+
+              # Parse the line
+              file_func = $1
+              coverage = $2
+
+              # Split file:line:function
+              split(file_func, parts, ":")
+              file = parts[1]
+              line = parts[2]
+              func = parts[3]
+
+              # Print formatted output
+              printf "%-50s %-30s %6s\n", file":"line":", func, coverage
+            }' >> "$OUTPUT"
+
+          echo '```' >> "$OUTPUT"
           echo "" >> "$OUTPUT"
           echo "_Generated on $(date -u '+%Y-%m-%d %H:%M:%S UTC')_" >> "$OUTPUT"
-
-          echo "" >> "$OUTPUT"
-          echo "<details>" >> "$OUTPUT"
-          echo "<summary>📝 How to view locally</summary>" >> "$OUTPUT"
-          echo "" >> "$OUTPUT"
-          echo '```bash' >> "$OUTPUT"
-          echo "go test -coverprofile=coverage.out ./internal/..." >> "$OUTPUT"
-          echo "go tool cover -html=coverage.out" >> "$OUTPUT"
-          echo '```' >> "$OUTPUT"
-          echo "</details>" >> "$OUTPUT"
 
       - name: Add coverage comment to PR
         if: github.event_name == 'pull_request'

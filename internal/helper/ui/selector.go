@@ -42,9 +42,12 @@ func SelectVideos(videos []models.Video, all bool, useEpisode bool) ([]int, erro
 		return nil, err
 	}
 
-	fmt.Println("\nSelect videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):")
+	fmt.Println("\n💡 Select videos:")
+	fmt.Println("   • Single: '1' or '3,5,7'")
+	fmt.Println("   • Range:  '1-5' or '1-3,7-9'")
+	fmt.Println("   • All:    Press Enter")
 
-	input := strings.TrimSpace(Input("Selection: "))
+	input := strings.TrimSpace(Input("\n🎯 Selection: "))
 	if input == "" {
 		// If input is empty, select all videos
 		indices := make([]int, len(videos))
@@ -60,13 +63,6 @@ func SelectVideos(videos []models.Video, all bool, useEpisode bool) ([]int, erro
 
 // renderVideoTable renders the video selection table.
 func renderVideoTable(videos []models.Video, useEpisode bool) error {
-	var aligns []tw.Align
-	if useEpisode {
-		aligns = []tw.Align{tw.AlignRight, tw.AlignRight, tw.AlignLeft}
-	} else {
-		aligns = []tw.Align{tw.AlignRight, tw.AlignLeft}
-	}
-
 	data := make([][]string, len(videos))
 	for i, video := range videos {
 		if useEpisode {
@@ -76,25 +72,43 @@ func renderVideoTable(videos []models.Video, useEpisode bool) error {
 		}
 	}
 
+	var aligns []tw.Align
+	if useEpisode {
+		aligns = []tw.Align{tw.AlignRight, tw.AlignRight, tw.AlignLeft}
+	} else {
+		aligns = []tw.Align{tw.AlignRight, tw.AlignLeft}
+	}
+
 	table := tablewriter.NewTable(
 		os.Stdout,
-		tablewriter.WithConfig(tablewriter.Config{ //nolint:exhaustruct
-			Row: tw.CellConfig{ //nolint:exhaustruct
+		tablewriter.WithConfig(tablewriter.Config{
+			Header: tw.CellConfig{
+				Alignment: tw.CellAlignment{
+					Global:    tw.AlignCenter,
+					PerColumn: aligns,
+				},
+			},
+			Row: tw.CellConfig{
 				Alignment: tw.CellAlignment{
 					Global:    tw.AlignLeft,
 					PerColumn: aligns,
 				},
+				// Auto-wrap long titles
+				Formatting: tw.CellFormatting{
+					AutoWrap: tw.WrapNormal,
+				},
 			},
 		}),
 	)
+
 	if useEpisode {
-		table.Header("Number", "Episode", "Video")
+		table.Header("Number", "Episode", "Title")
 	} else {
-		table.Header("Number", "Video")
+		table.Header("Number", "Title")
 	}
 
 	if err := table.Bulk(data); err != nil {
-		return fmt.Errorf("failed to render table: %w", err)
+		return fmt.Errorf("failed to add table data: %w", err)
 	}
 
 	if err := table.Render(); err != nil {

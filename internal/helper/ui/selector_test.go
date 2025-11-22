@@ -3,9 +3,50 @@ package ui
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"switchtube-downloader/internal/models"
+
+	"github.com/stretchr/testify/assert"
+)
+
+const (
+	table1Video = `┌────────┬────────┐
+│ NUMBER │ TITLE  │
+├────────┼────────┤
+│      1 │ Video1 │
+└────────┴────────┘
+
+`
+	table2Videos = `┌────────┬────────┐
+│ NUMBER │ TITLE  │
+├────────┼────────┤
+│      1 │ Video1 │
+│      2 │ Video2 │
+└────────┴────────┘
+
+`
+	table3Videos = `┌────────┬────────┐
+│ NUMBER │ TITLE  │
+├────────┼────────┤
+│      1 │ Video1 │
+│      2 │ Video2 │
+│      3 │ Video3 │
+└────────┴────────┘
+
+`
+	episodeTable = `┌────────┬─────────┬────────┐
+│ NUMBER │ EPISODE │ TITLE  │
+├────────┼─────────┼────────┤
+│      1 │      01 │ Video1 │
+│      2 │      02 │ Video2 │
+└────────┴─────────┴────────┘
+
+`
+	commonPrompt = `💡 Select videos:
+   • Single: '1' or '3,5,7'
+   • Range:  '1-5' or '1-3,7-9'
+   • All:    Press Enter
+
+🎯 Selection: `
 )
 
 func TestSelectVideos(t *testing.T) {
@@ -38,8 +79,7 @@ func TestSelectVideos(t *testing.T) {
 			input:      "\n",
 			want:       []int{0, 1},
 			wantErr:    false,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n│      2 │ Video2 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table2Videos + commonPrompt,
 		},
 		{
 			name:       "select single video",
@@ -49,8 +89,7 @@ func TestSelectVideos(t *testing.T) {
 			input:      "1\n",
 			want:       []int{0},
 			wantErr:    false,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n│      2 │ Video2 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table2Videos + commonPrompt,
 		},
 		{
 			name:       "select range",
@@ -60,8 +99,7 @@ func TestSelectVideos(t *testing.T) {
 			input:      "1-3\n",
 			want:       []int{0, 1, 2},
 			wantErr:    false,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n│      2 │ Video2 │\n│      3 │ Video3 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table3Videos + commonPrompt,
 		},
 		{
 			name:       "select multiple videos with comma",
@@ -71,8 +109,7 @@ func TestSelectVideos(t *testing.T) {
 			input:      "1, 3\n",
 			want:       []int{0, 2},
 			wantErr:    false,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n│      2 │ Video2 │\n│      3 │ Video3 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table3Videos + commonPrompt,
 		},
 		{
 			name:       "select multiple videos with space",
@@ -82,8 +119,7 @@ func TestSelectVideos(t *testing.T) {
 			input:      "1 3\n",
 			want:       []int{0, 2},
 			wantErr:    false,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n│      2 │ Video2 │\n│      3 │ Video3 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table3Videos + commonPrompt,
 		},
 		{
 			name:       "invalid number",
@@ -94,8 +130,7 @@ func TestSelectVideos(t *testing.T) {
 			want:       nil,
 			wantErr:    true,
 			err:        errInvalidNumber,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table1Video + commonPrompt,
 		},
 		{
 			name:       "number out of range",
@@ -106,8 +141,7 @@ func TestSelectVideos(t *testing.T) {
 			want:       nil,
 			wantErr:    true,
 			err:        errNumberOutOfRange,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table1Video + commonPrompt,
 		},
 		{
 			name:       "invalid range format",
@@ -118,8 +152,7 @@ func TestSelectVideos(t *testing.T) {
 			want:       nil,
 			wantErr:    true,
 			err:        errInvalidRangeFormat,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n│      2 │ Video2 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table2Videos + commonPrompt,
 		},
 		{
 			name:       "invalid start number in range",
@@ -130,8 +163,7 @@ func TestSelectVideos(t *testing.T) {
 			want:       nil,
 			wantErr:    true,
 			err:        errInvalidStartNumber,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n│      2 │ Video2 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table2Videos + commonPrompt,
 		},
 		{
 			name:       "invalid end number in range",
@@ -142,8 +174,7 @@ func TestSelectVideos(t *testing.T) {
 			want:       nil,
 			wantErr:    true,
 			err:        errInvalidEndNumber,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n│      2 │ Video2 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table2Videos + commonPrompt,
 		},
 		{
 			name:       "range out of bounds",
@@ -154,8 +185,7 @@ func TestSelectVideos(t *testing.T) {
 			want:       nil,
 			wantErr:    true,
 			err:        errInvalidRange,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n│      2 │ Video2 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table2Videos + commonPrompt,
 		},
 		{
 			name:       "start greater than end in range",
@@ -166,8 +196,7 @@ func TestSelectVideos(t *testing.T) {
 			want:       nil,
 			wantErr:    true,
 			err:        errInvalidRange,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n│      2 │ Video2 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table2Videos + commonPrompt,
 		},
 		{
 			name:       "no valid selections",
@@ -178,8 +207,7 @@ func TestSelectVideos(t *testing.T) {
 			want:       nil,
 			wantErr:    true,
 			err:        errNoValidSelectionsFound,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table1Video + commonPrompt,
 		},
 		{
 			name:       "empty video list",
@@ -199,8 +227,7 @@ func TestSelectVideos(t *testing.T) {
 			input:      "1,1,1-2,2\n",
 			want:       []int{0, 1},
 			wantErr:    false,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n│      2 │ Video2 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table2Videos + commonPrompt,
 		},
 		{
 			name:       "range with same start and end",
@@ -210,8 +237,7 @@ func TestSelectVideos(t *testing.T) {
 			input:      "1-1\n",
 			want:       []int{0},
 			wantErr:    false,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n│      2 │ Video2 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table2Videos + commonPrompt,
 		},
 		{
 			name:       "mixed valid and invalid selections",
@@ -222,8 +248,7 @@ func TestSelectVideos(t *testing.T) {
 			want:       nil,
 			wantErr:    true,
 			err:        errInvalidNumber,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n│      2 │ Video2 │\n│      3 │ Video3 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table3Videos + commonPrompt,
 		},
 		{
 			name:       "negative numbers",
@@ -234,8 +259,7 @@ func TestSelectVideos(t *testing.T) {
 			want:       nil,
 			wantErr:    true,
 			err:        errInvalidStartNumber,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table1Video + commonPrompt,
 		},
 		{
 			name:       "zero as input",
@@ -246,8 +270,7 @@ func TestSelectVideos(t *testing.T) {
 			want:       nil,
 			wantErr:    true,
 			err:        errNumberOutOfRange,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table1Video + commonPrompt,
 		},
 		{
 			name:       "input with extra whitespace",
@@ -257,8 +280,7 @@ func TestSelectVideos(t *testing.T) {
 			input:      "  1  ,  2  \n",
 			want:       []int{0, 1},
 			wantErr:    false,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n│      2 │ Video2 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table2Videos + commonPrompt,
 		},
 		{
 			name:       "range with spaces around dash",
@@ -269,18 +291,16 @@ func TestSelectVideos(t *testing.T) {
 			want:       nil,
 			wantErr:    true,
 			err:        errInvalidStartNumber,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n│      2 │ Video2 │\n│      3 │ Video3 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: table3Videos + commonPrompt,
 		},
 		{
-			name:    "single number with leading/trailing spaces",
-			videos:  []models.Video{{Title: "Video1"}, {Title: "Video2"}},
-			all:     false,
-			input:   "  2  \n",
-			want:    []int{1},
-			wantErr: false,
-			wantPrompt: "┌────────┬────────┐\n│ NUMBER │ VIDEO  │\n├────────┼────────┤\n│      1 │ Video1 │\n│      2 │ Video2 │\n└────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			name:       "single number with leading/trailing spaces",
+			videos:     []models.Video{{Title: "Video1"}, {Title: "Video2"}},
+			all:        false,
+			input:      "  2  \n",
+			want:       []int{1},
+			wantErr:    false,
+			wantPrompt: table2Videos + commonPrompt,
 		},
 		{
 			name: "select with episode",
@@ -293,8 +313,7 @@ func TestSelectVideos(t *testing.T) {
 			input:      "1\n",
 			want:       []int{0},
 			wantErr:    false,
-			wantPrompt: "┌────────┬─────────┬────────┐\n│ NUMBER │ EPISODE │ VIDEO  │\n├────────┼─────────┼────────┤\n│      1 │      01 │ Video1 │\n│      2 │      02 │ Video2 │\n└────────┴─────────┴────────┘\n\n" +
-				"Select videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):\nSelection: ",
+			wantPrompt: episodeTable + commonPrompt,
 		},
 	}
 

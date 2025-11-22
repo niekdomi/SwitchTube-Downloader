@@ -4,10 +4,14 @@ package token
 import (
 	"errors"
 	"fmt"
+	"os"
 	"os/user"
+	"strings"
 
 	"switchtube-downloader/internal/helper/ui"
 
+	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/tw"
 	"github.com/zalando/go-keyring"
 )
 
@@ -61,6 +65,8 @@ func (tm *Manager) Delete() error {
 		return fmt.Errorf("%w: %w", errFailedToDelete, err)
 	}
 
+	fmt.Println("✅ Token successfully deleted from keyring")
+
 	return nil
 }
 
@@ -91,10 +97,11 @@ func (tm *Manager) Set() error {
 	}
 
 	if existingToken != "" {
-		fmt.Println("Token already exists in keyring")
+		tm.displayTokenInfo(existingToken)
+		fmt.Println()
 
-		if !ui.Confirm("Do you want to replace it?") {
-			fmt.Println("Operation cancelled")
+		if !ui.Confirm("🔄 Do you want to replace it?") {
+			fmt.Println("❌ Operation cancelled")
 
 			return fmt.Errorf("%w", ErrTokenAlreadyExists)
 		}
@@ -114,29 +121,126 @@ func (tm *Manager) Set() error {
 		return fmt.Errorf("%w: %w", errFailedToStore, err)
 	}
 
+	fmt.Println("\n✅ Token successfully stored in keyring")
+	tm.displayTokenInfo(token)
+
 	return nil
 }
 
 // create prompts the user to visit the access-token-creation URL and enter a new token.
 func (tm *Manager) create() (string, error) {
-	fmt.Printf("Please visit: %s\n", createAccessTokenURL)
-	fmt.Printf("Create a new access token and paste it below\n\n")
+	tm.displayInstructions()
 
-	token := ui.Input("Enter your access token: ")
+	token := strings.TrimSpace(ui.Input("\n🔑 Enter your access token: "))
 	if token == "" {
 		return "", errTokenEmpty
 	}
 
 	if errors.Is(validateToken(token), errInvalidToken) {
+		tm.displayValidationError()
 		return "", errInvalidToken
 	}
 
 	return token, nil
 }
 
+// displayInstructions shows a formatted instruction table for token creation.
+func (tm *Manager) displayInstructions() {
+	fmt.Println()
+	table := tablewriter.NewTable(
+		os.Stdout,
+		tablewriter.WithConfig(tablewriter.Config{
+			Header: tw.CellConfig{
+				Alignment: tw.CellAlignment{Global: tw.AlignCenter},
+			},
+			Row: tw.CellConfig{
+				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
+				Formatting: tw.CellFormatting{
+					AutoWrap: tw.WrapNormal,
+				},
+			},
+		}),
+	)
+
+	table.Header("📋 Token Creation Instructions")
+	table.Append([]string{fmt.Sprintf("1️⃣  Visit: %s", createAccessTokenURL)})
+	table.Append([]string{"2️⃣  Click 'Create a new access token'"})
+	table.Append([]string{"3️⃣  Copy the generated token"})
+	table.Append([]string{"4️⃣  Paste it below"})
+	table.Render()
+}
+
+// displayTokenInfo shows information about the stored token.
+func (tm *Manager) displayTokenInfo(token string) {
+	userName, err := user.Current()
+	if err != nil {
+		return // Silently fail for display purposes
+	}
+
+	maskedToken := tm.maskToken(token)
+
+	table := tablewriter.NewTable(
+		os.Stdout,
+		tablewriter.WithConfig(tablewriter.Config{
+			Header: tw.CellConfig{
+				Alignment: tw.CellAlignment{Global: tw.AlignCenter},
+			},
+			Row: tw.CellConfig{
+				Alignment: tw.CellAlignment{PerColumn: []tw.Align{tw.AlignRight, tw.AlignLeft}},
+			},
+		}),
+	)
+
+	table.Header("Token Information")
+	table.Append([]string{"Service", tm.keyringService})
+	table.Append([]string{"User", userName.Username})
+	table.Append([]string{"Token", maskedToken})
+	table.Append([]string{"Length", fmt.Sprintf("%d characters", len(token))})
+	table.Append([]string{"Status", "✓ Valid"})
+	table.Render()
+}
+
+// displayValidationError shows validation requirements in a table.
+func (tm *Manager) displayValidationError() {
+	fmt.Println("\n❌ Invalid token format!")
+	fmt.Println()
+
+	table := tablewriter.NewTable(
+		os.Stdout,
+		tablewriter.WithConfig(tablewriter.Config{
+			Header: tw.CellConfig{
+				Alignment: tw.CellAlignment{Global: tw.AlignCenter},
+			},
+			Row: tw.CellConfig{
+				Alignment: tw.CellAlignment{PerColumn: []tw.Align{tw.AlignRight, tw.AlignLeft}},
+			},
+		}),
+	)
+
+	table.Header("Token Requirements")
+	table.Append([]string{"Length", "Exactly 43 characters"})
+	table.Append([]string{"Characters", "A-Z, a-z, 0-9, -, _"})
+	table.Append([]string{"Example", "AbC123-_xyz...  (43 chars total)"})
+	table.Render()
+}
+
+// maskToken masks the middle portion of the token for security.
+func (tm *Manager) maskToken(token string) string {
+	if len(token) <= 10 {
+		return strings.Repeat("*", len(token))
+	}
+
+	// Show first 5 and last 5 characters
+	start := token[:5]
+	end := token[len(token)-5:]
+	middle := strings.Repeat("*", len(token)-10)
+
+	return fmt.Sprintf("%s%s%s", start, middle, end)
+}
+
 // validateToken checks if the the token passed is valid.
 //
-// A token has following constraints:
+// A token has following requirements:
 //   - Length: 43 characters
 //   - Valid characters: [ A-Z, a-z, 0-9, -, _ ]
 //

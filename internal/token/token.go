@@ -55,6 +55,10 @@ func (tm *Manager) Get() (string, error) {
 		return "", fmt.Errorf("failed to retrieve token: %w", err)
 	}
 
+	if err := tm.validateToken(token); err != nil {
+		return "", fmt.Errorf("stored token is invalid: %w", err)
+	}
+
 	return token, nil
 }
 
@@ -64,17 +68,30 @@ func (tm *Manager) Set() error {
 		return err
 	}
 
-	token, err := tm.promptForToken()
+	tm.displayInstructions()
+	token := strings.TrimSpace(ui.Input("\n🔑 Enter your access token: "))
+	if token == "" {
+		return ErrTokenEmpty
+	}
+
+	fmt.Println("\n🔍 Validating token with SwitchTube API...")
+	if err := tm.validateToken(token); err != nil {
+		fmt.Println("\n❌ Token validation failed")
+		tm.displayValidationResult(token, false, err)
+		return err
+	}
+
+	username, err := tm.getUsername()
 	if err != nil {
 		return err
 	}
 
-	if err := tm.validateAndStore(token); err != nil {
-		return err
+	if err := keyring.Set(tm.keyringService, username, token); err != nil {
+		return fmt.Errorf("failed to store token: %w", err)
 	}
 
-	fmt.Println("✅ Token is valid and successfully stored in keyring")
 	tm.displayTokenInfo(token, true)
+	fmt.Println("✅ Token is valid and successfully stored in keyring")
 
 	return nil
 }
@@ -99,13 +116,11 @@ func (tm *Manager) Delete() error {
 
 // Validate validates the stored token and displays its status.
 func (tm *Manager) Validate() error {
+	fmt.Println("\n🔍 Validating token...")
+
+	// Get() already performs validation
 	token, err := tm.Get()
 	if err != nil {
-		return err
-	}
-
-	fmt.Println("\n🔍 Validating token...")
-	if err := tm.validateToken(token); err != nil {
 		tm.displayValidationResult(token, false, err)
 		return err
 	}
@@ -141,60 +156,24 @@ func (tm *Manager) checkExistingToken() error {
 	return nil
 }
 
-// promptForToken displays instructions and prompts user for token input.
-func (tm *Manager) promptForToken() (string, error) {
-	tm.displayInstructions()
-	token := strings.TrimSpace(ui.Input("\n🔑 Enter your access token: "))
-	if token == "" {
-		return "", ErrTokenEmpty
-	}
-	return token, nil
-}
-
-// validateAndStore validates a token and stores it in the keyring.
-func (tm *Manager) validateAndStore(token string) error {
-	fmt.Println("\n🔍 Validating token with SwitchTube API...")
-
-	if err := tm.validateToken(token); err != nil {
-		fmt.Println("\n❌ Token validation failed")
-		tm.displayValidationResult(token, false, err)
-		return err
+// createTable creates a tablewriter with standard configuration.
+func (tm *Manager) createTable(header string, alignments ...tw.Align) *tablewriter.Table {
+	config := tablewriter.Config{
+		Header: tw.CellConfig{
+			Alignment: tw.CellAlignment{Global: tw.AlignCenter},
+		},
+		Row: tw.CellConfig{
+			Alignment: tw.CellAlignment{Global: tw.AlignLeft},
+		},
 	}
 
-	username, err := tm.getUsername()
-	if err != nil {
-		return err
+	if len(alignments) > 0 {
+		config.Row.Alignment = tw.CellAlignment{PerColumn: alignments}
 	}
 
-	if err := keyring.Set(tm.keyringService, username, token); err != nil {
-		return fmt.Errorf("failed to store token: %w", err)
-	}
-
-	return nil
-}
-
-// validateToken checks if the token is valid by making a request to the SwitchTube API.
-func (tm *Manager) validateToken(token string) error {
-	req, err := http.NewRequest(http.MethodGet, profileAPIURL, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Token "+token)
-	req.Header.Set("Accept", "application/json")
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to validate token: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return ErrTokenInvalid
-	}
-
-	return nil
+	table := tablewriter.NewTable(os.Stdout, tablewriter.WithConfig(config))
+	table.Header(header)
+	return table
 }
 
 // displayInstructions shows formatted instructions for token creation.
@@ -236,9 +215,9 @@ func (tm *Manager) displayValidationResult(token string, valid bool, err error) 
 		return
 	}
 
-	status := "🟢 ✓ Valid"
+	status := "🟢 Valid"
 	if !valid {
-		status = "🔴 ✗ Invalid"
+		status = "🔴 Invalid"
 	}
 
 	table := tm.createTable("Token Validation Result", tw.AlignRight, tw.AlignLeft)
@@ -255,26 +234,6 @@ func (tm *Manager) displayValidationResult(token string, valid bool, err error) 
 	table.Render()
 }
 
-// createTable creates a tablewriter with standard configuration.
-func (tm *Manager) createTable(header string, alignments ...tw.Align) *tablewriter.Table {
-	config := tablewriter.Config{
-		Header: tw.CellConfig{
-			Alignment: tw.CellAlignment{Global: tw.AlignCenter},
-		},
-		Row: tw.CellConfig{
-			Alignment: tw.CellAlignment{Global: tw.AlignLeft},
-		},
-	}
-
-	if len(alignments) > 0 {
-		config.Row.Alignment = tw.CellAlignment{PerColumn: alignments}
-	}
-
-	table := tablewriter.NewTable(os.Stdout, tablewriter.WithConfig(config))
-	table.Header(header)
-	return table
-}
-
 // maskToken masks the middle portion of the token for security.
 func (tm *Manager) maskToken(token string) string {
 	if len(token) <= 10 {
@@ -282,4 +241,29 @@ func (tm *Manager) maskToken(token string) string {
 	}
 
 	return token[:5] + strings.Repeat("*", len(token)-10) + token[len(token)-5:]
+}
+
+// validateToken checks if the token is valid by making a request to the SwitchTube API.
+func (tm *Manager) validateToken(token string) error {
+	req, err := http.NewRequest(http.MethodGet, profileAPIURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Token "+token)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to validate token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return ErrTokenInvalid
+	}
+
+	return nil
 }

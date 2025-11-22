@@ -89,7 +89,8 @@ jobs:
       - name: Run tests and generate coverage
         run: |
           go test -coverprofile=coverage.out ./internal/...
-          go tool cover -func=coverage.out > coverage.txt
+          # Generate detailed per-function output, remove prefix, and align columns
+          go tool cover -func=coverage.out | sed 's|switchtube-downloader/|/|g' | awk 'BEGIN {FS="\t"; OFS="\t"} {gsub(/:/, ": ", $1); printf "%-60s %-30s %s\n", $1, $2, $3}' > coverage.txt
 
       - name: Convert coverage to Markdown
         if: github.event_name == 'pull_request'
@@ -103,6 +104,29 @@ jobs:
           fi
 
           echo "### 📊 Test Coverage Report" > "$OUTPUT"
+          echo "" >> "$OUTPUT"
+
+          # Per-File Summary Section
+          echo "#### 📁 Per-File Summary" >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          awk -F'\t' '{
+            split($1, parts, ": ");
+            file = parts[1];
+            pct = $3;
+            sub("%", "", pct);
+            sum[file] += pct;
+            count[file]++;
+          } END {
+            for (f in sum) {
+              printf "%-50s %.1f%%\n", f, sum[f]/count[f];
+            }
+          }' "$INPUT" | sort >> "$OUTPUT"
+          echo '```' >> "$OUTPUT"
+          echo "" >> "$OUTPUT"
+
+          # Detailed Per-Function Section
+          echo "#### 🔍 Per-Function Details" >> "$OUTPUT"
           echo "" >> "$OUTPUT"
           echo '```' >> "$OUTPUT"
           cat "$INPUT" >> "$OUTPUT"

@@ -182,12 +182,6 @@ Multiple video quality options are usually available, but to keep the downloader
 simple, I chose not to include a quality selection flag, since most users will
 use the highest quality available anyway.
 
-> Why is the output not colored?
-
-I have no interest to implement such a feature, though I'm happy to review pull
-requests. The required library can be found
-[here](https://github.com/ivanpirog/coloredcobra).
-
 > Can we download multiple videos at once?
 
 Currently, the downloader doesn't support batch downloads (e.g.

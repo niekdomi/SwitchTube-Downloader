@@ -3,11 +3,15 @@ package ui
 import (
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
 
 	"switchtube-downloader/internal/models"
+
+	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/tw"
 )
 
 const rangePartsCount = 2
@@ -23,7 +27,7 @@ var (
 )
 
 // SelectVideos displays the video list and handles user selection.
-func SelectVideos(videos []models.Video, all bool) ([]int, error) {
+func SelectVideos(videos []models.Video, all bool, useEpisode bool) ([]int, error) {
 	// If --all flag is used, select all videos
 	if all || len(videos) == 0 {
 		indices := make([]int, len(videos))
@@ -34,10 +38,8 @@ func SelectVideos(videos []models.Video, all bool) ([]int, error) {
 		return indices, nil
 	}
 
-	fmt.Println("\nAvailable videos:")
-
-	for i, video := range videos {
-		fmt.Printf("%d. %s\n", i+1, video.Title)
+	if err := renderVideoTable(videos, useEpisode); err != nil {
+		return nil, err
 	}
 
 	fmt.Println("\nSelect videos (e.g., '1-3', '1,3,5', '1 3 5', or Enter for all):")
@@ -54,6 +56,52 @@ func SelectVideos(videos []models.Video, all bool) ([]int, error) {
 	}
 
 	return parseSelection(input, len(videos))
+}
+
+// renderVideoTable renders the video selection table.
+func renderVideoTable(videos []models.Video, useEpisode bool) error {
+	var aligns []tw.Align
+	if useEpisode {
+		aligns = []tw.Align{tw.AlignRight, tw.AlignRight, tw.AlignLeft}
+	} else {
+		aligns = []tw.Align{tw.AlignRight, tw.AlignLeft}
+	}
+
+	data := make([][]string, len(videos))
+	for i, video := range videos {
+		if useEpisode {
+			data[i] = []string{strconv.Itoa(i + 1), video.Episode, video.Title}
+		} else {
+			data[i] = []string{strconv.Itoa(i + 1), video.Title}
+		}
+	}
+
+	table := tablewriter.NewTable(
+		os.Stdout,
+		tablewriter.WithConfig(tablewriter.Config{ //nolint:exhaustruct
+			Row: tw.CellConfig{ //nolint:exhaustruct
+				Alignment: tw.CellAlignment{
+					Global:    tw.AlignLeft,
+					PerColumn: aligns,
+				},
+			},
+		}),
+	)
+	if useEpisode {
+		table.Header("Number", "Episode", "Video")
+	} else {
+		table.Header("Number", "Video")
+	}
+
+	if err := table.Bulk(data); err != nil {
+		return fmt.Errorf("failed to render table: %w", err)
+	}
+
+	if err := table.Render(); err != nil {
+		return fmt.Errorf("failed to render table: %w", err)
+	}
+
+	return nil
 }
 
 // parseSelection parses user input and returns selected video indices.

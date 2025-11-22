@@ -82,11 +82,11 @@ func (tm *Manager) Get() (string, error) {
 			return "", errNoToken
 		}
 
-		return "", fmt.Errorf("failed to retrieve token: %w", err)
+		return token, fmt.Errorf("failed to retrieve token: %w", err)
 	}
 
 	if err := tm.validateToken(token); err != nil {
-		return "", fmt.Errorf("stored token is invalid: %w", err)
+		return token, fmt.Errorf("stored token is invalid: %w", err)
 	}
 
 	return token, nil
@@ -109,7 +109,7 @@ func (tm *Manager) Set() error {
 
 	if err := tm.validateToken(token); err != nil {
 		fmt.Println("\n❌ Token validation failed")
-		tm.displayValidationResult(token, false, err)
+		tm.displayTokenInfo(token, false)
 
 		return err
 	}
@@ -136,24 +136,25 @@ func (tm *Manager) Validate() error {
 	// Get() already performs validation
 	token, err := tm.Get()
 	if err != nil {
-		tm.displayValidationResult(token, false, err)
+		tm.displayTokenInfo(token, false)
 
 		return err
 	}
 
-	tm.displayValidationResult(token, true, nil)
+	tm.displayTokenInfo(token, true)
 
 	return nil
 }
 
 // checkExistingToken checks if a token already exists and prompts for replacement.
 func (tm *Manager) checkExistingToken() error {
-	existingToken, _ := tm.Get()
-	if existingToken == "" {
+	existingToken, err := tm.Get()
+	if errors.Is(err, errNoToken) {
 		return nil
 	}
 
-	tm.displayTokenInfo(existingToken, true)
+	tm.displayTokenInfo(existingToken, err == nil)
+
 	fmt.Println()
 
 	if !ui.Confirm("🔄 Do you want to replace it?") {
@@ -206,9 +207,9 @@ func (tm *Manager) displayTokenInfo(token string, valid bool) {
 		return
 	}
 
-	status := "✓ Valid"
+	status := "🟢 Valid"
 	if !valid {
-		status = "✗ Invalid"
+		status = "🔴 Invalid"
 	}
 
 	table := tm.createTable("Token Information", tw.AlignRight, tw.AlignLeft)
@@ -217,32 +218,6 @@ func (tm *Manager) displayTokenInfo(token string, valid bool) {
 	_ = table.Append([]string{"Token", tm.maskToken(token)})
 	_ = table.Append([]string{"Length", fmt.Sprintf("%d characters", len(token))})
 	_ = table.Append([]string{"Status", status})
-	_ = table.Render()
-}
-
-// displayValidationResult shows the validation result in a formatted table.
-func (tm *Manager) displayValidationResult(token string, valid bool, err error) {
-	username, userErr := tm.getUsername()
-	if userErr != nil {
-		return
-	}
-
-	status := "🟢 Valid"
-	if !valid {
-		status = "🔴 Invalid"
-	}
-
-	table := tm.createTable("Token Validation Result", tw.AlignRight, tw.AlignLeft)
-	_ = table.Append([]string{"Service", tm.keyringService})
-	_ = table.Append([]string{"User", username})
-	_ = table.Append([]string{"Token", tm.maskToken(token)})
-	_ = table.Append([]string{"Length", fmt.Sprintf("%d characters", len(token))})
-	_ = table.Append([]string{"Status", status})
-
-	if !valid && err != nil {
-		_ = table.Append([]string{"Error", err.Error()})
-	}
-
 	_ = table.Render()
 }
 
@@ -256,7 +231,7 @@ func (tm *Manager) getUsername() (string, error) {
 	return u.Username, nil
 }
 
-// maskToken masks the middle portion of the token for security.
+// maskToken masks the middle portion of the token.
 func (tm *Manager) maskToken(token string) string {
 	if len(token) <= tokenMaskThreshold {
 		return strings.Repeat("*", len(token))

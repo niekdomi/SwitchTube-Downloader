@@ -114,7 +114,7 @@ func TestSet(t *testing.T) {
 			existingToken: true,
 			input:         "n\n",
 			wantErr:       true,
-			wantErrType:   errTokenInvalid,
+			wantErrType:   ErrTokenAlreadyExists,
 		},
 		{
 			name:        "empty token input",

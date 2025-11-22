@@ -4,9 +4,11 @@ package token
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"os/user"
 	"strings"
+	"time"
 
 	"switchtube-downloader/internal/helper/ui"
 
@@ -18,24 +20,14 @@ import (
 const (
 	serviceName          = "SwitchTube"
 	createAccessTokenURL = "https://tube.switch.ch/access_tokens"
+	profileAPIURL        = "https://tube.switch.ch/api/v1/profiles/me"
 )
 
-const accessTokenLength = 43
-
 var (
-	// ErrTokenAlreadyExists is returned when trying to set a token that already
-	// exists in the keyring.
 	ErrTokenAlreadyExists = errors.New("token already exists in keyring")
-
-	errFailedToDelete     = errors.New("failed to delete token from keyring")
-	errFailedToGetUser    = errors.New("failed to get current user")
-	errFailedToRetrieve   = errors.New("failed to retrieve token from keyring")
-	errFailedToStore      = errors.New("failed to store token in keyring")
-	errInvalidToken       = errors.New("invalid token provided")
-	errNoTokenFoundDelete = errors.New("no token found in keyring")
-	errNoTokenFound       = errors.New("no token found in keyring - run 'token set' first")
-	errTokenEmpty         = errors.New("token cannot be empty")
-	errUnableToCreate     = errors.New("unable to create access token")
+	ErrNoToken            = errors.New("no token found in keyring - run 'token set' first")
+	ErrTokenEmpty         = errors.New("token cannot be empty")
+	ErrTokenInvalid       = errors.New("token authentication failed")
 )
 
 // Manager encapsulates token management logic.
@@ -43,47 +35,24 @@ type Manager struct {
 	keyringService string
 }
 
-// NewTokenManager creates a new instance of tokenManager.
+// NewTokenManager creates a new instance of Manager.
 func NewTokenManager() *Manager {
-	return &Manager{
-		keyringService: serviceName,
-	}
-}
-
-// Delete removes the access token from the system keyring.
-func (tm *Manager) Delete() error {
-	userName, err := user.Current()
-	if err != nil {
-		return fmt.Errorf("%w: %w", errFailedToGetUser, err)
-	}
-
-	if err = keyring.Delete(tm.keyringService, userName.Username); err != nil {
-		if errors.Is(err, keyring.ErrNotFound) {
-			return fmt.Errorf("%w for %s", errNoTokenFoundDelete, tm.keyringService)
-		}
-
-		return fmt.Errorf("%w: %w", errFailedToDelete, err)
-	}
-
-	fmt.Println("✅ Token successfully deleted from keyring")
-
-	return nil
+	return &Manager{keyringService: serviceName}
 }
 
 // Get retrieves the access token from the system keyring.
 func (tm *Manager) Get() (string, error) {
-	userName, err := user.Current()
+	username, err := tm.getUsername()
 	if err != nil {
-		return "", fmt.Errorf("%w: %w", errFailedToGetUser, err)
+		return "", err
 	}
 
-	token, err := keyring.Get(tm.keyringService, userName.Username)
+	token, err := keyring.Get(tm.keyringService, username)
 	if err != nil {
 		if errors.Is(err, keyring.ErrNotFound) {
-			return "", errNoTokenFound
+			return "", ErrNoToken
 		}
-
-		return "", fmt.Errorf("%w: %w", errFailedToRetrieve, err)
+		return "", fmt.Errorf("failed to retrieve token: %w", err)
 	}
 
 	return token, nil
@@ -91,137 +60,219 @@ func (tm *Manager) Get() (string, error) {
 
 // Set creates and stores a new access token in the system keyring.
 func (tm *Manager) Set() error {
-	existingToken, err := tm.Get()
-	if err != nil && !errors.Is(err, errNoTokenFound) {
-		return fmt.Errorf("%w: %w", errFailedToRetrieve, err)
+	if err := tm.checkExistingToken(); err != nil {
+		return err
 	}
 
-	if existingToken != "" {
-		tm.displayTokenInfo(existingToken)
-		fmt.Println()
-
-		if !ui.Confirm("🔄 Do you want to replace it?") {
-			fmt.Println("❌ Operation cancelled")
-
-			return fmt.Errorf("%w", ErrTokenAlreadyExists)
-		}
-	}
-
-	token, err := tm.create()
+	token, err := tm.promptForToken()
 	if err != nil {
-		return fmt.Errorf("%w: %w", errUnableToCreate, err)
+		return err
 	}
 
-	userName, err := user.Current()
-	if err != nil {
-		return fmt.Errorf("%w: %w", errFailedToGetUser, err)
+	if err := tm.validateAndStore(token); err != nil {
+		return err
 	}
 
-	if err = keyring.Set(tm.keyringService, userName.Username, token); err != nil {
-		return fmt.Errorf("%w: %w", errFailedToStore, err)
-	}
-
-	fmt.Println("\n✅ Token successfully stored in keyring")
-	tm.displayTokenInfo(token)
+	fmt.Println("✅ Token is valid and successfully stored in keyring")
+	tm.displayTokenInfo(token, true)
 
 	return nil
 }
 
-// create prompts the user to visit the access-token-creation URL and enter a new token.
-func (tm *Manager) create() (string, error) {
-	tm.displayInstructions()
+// Delete removes the access token from the system keyring.
+func (tm *Manager) Delete() error {
+	username, err := tm.getUsername()
+	if err != nil {
+		return err
+	}
 
+	if err := keyring.Delete(tm.keyringService, username); err != nil {
+		if errors.Is(err, keyring.ErrNotFound) {
+			return fmt.Errorf("no token found in keyring for %s", tm.keyringService)
+		}
+		return fmt.Errorf("failed to delete token: %w", err)
+	}
+
+	fmt.Println("✅ Token successfully deleted from keyring")
+	return nil
+}
+
+// Validate validates the stored token and displays its status.
+func (tm *Manager) Validate() error {
+	token, err := tm.Get()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("\n🔍 Validating token...")
+	if err := tm.validateToken(token); err != nil {
+		tm.displayValidationResult(token, false, err)
+		return err
+	}
+
+	tm.displayValidationResult(token, true, nil)
+	return nil
+}
+
+// getUsername returns the current username.
+func (tm *Manager) getUsername() (string, error) {
+	u, err := user.Current()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current user: %w", err)
+	}
+	return u.Username, nil
+}
+
+// checkExistingToken checks if a token already exists and prompts for replacement.
+func (tm *Manager) checkExistingToken() error {
+	existingToken, _ := tm.Get()
+	if existingToken == "" {
+		return nil
+	}
+
+	tm.displayTokenInfo(existingToken, true)
+	fmt.Println()
+
+	if !ui.Confirm("🔄 Do you want to replace it?") {
+		fmt.Println("❌ Operation cancelled")
+		return ErrTokenAlreadyExists
+	}
+
+	return nil
+}
+
+// promptForToken displays instructions and prompts user for token input.
+func (tm *Manager) promptForToken() (string, error) {
+	tm.displayInstructions()
 	token := strings.TrimSpace(ui.Input("\n🔑 Enter your access token: "))
 	if token == "" {
-		return "", errTokenEmpty
+		return "", ErrTokenEmpty
 	}
-
-	if errors.Is(validateToken(token), errInvalidToken) {
-		tm.displayValidationError()
-		return "", errInvalidToken
-	}
-
 	return token, nil
 }
 
-// displayInstructions shows a formatted instruction table for token creation.
+// validateAndStore validates a token and stores it in the keyring.
+func (tm *Manager) validateAndStore(token string) error {
+	fmt.Println("\n🔍 Validating token with SwitchTube API...")
+
+	if err := tm.validateToken(token); err != nil {
+		fmt.Println("\n❌ Token validation failed")
+		tm.displayValidationResult(token, false, err)
+		return err
+	}
+
+	username, err := tm.getUsername()
+	if err != nil {
+		return err
+	}
+
+	if err := keyring.Set(tm.keyringService, username, token); err != nil {
+		return fmt.Errorf("failed to store token: %w", err)
+	}
+
+	return nil
+}
+
+// validateToken checks if the token is valid by making a request to the SwitchTube API.
+func (tm *Manager) validateToken(token string) error {
+	req, err := http.NewRequest(http.MethodGet, profileAPIURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Token "+token)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to validate token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return ErrTokenInvalid
+	}
+
+	return nil
+}
+
+// displayInstructions shows formatted instructions for token creation.
 func (tm *Manager) displayInstructions() {
 	fmt.Println()
-	table := tablewriter.NewTable(
-		os.Stdout,
-		tablewriter.WithConfig(tablewriter.Config{
-			Header: tw.CellConfig{
-				Alignment: tw.CellAlignment{Global: tw.AlignCenter},
-			},
-			Row: tw.CellConfig{
-				Alignment: tw.CellAlignment{Global: tw.AlignLeft},
-				Formatting: tw.CellFormatting{
-					AutoWrap: tw.WrapNormal,
-				},
-			},
-		}),
-	)
-
-	table.Header("📋 Token Creation Instructions")
+	table := tm.createTable("📋 Token Creation Instructions", tw.AlignLeft)
 	table.Append([]string{fmt.Sprintf("1️⃣  Visit: %s", createAccessTokenURL)})
-	table.Append([]string{"2️⃣  Click 'Create a new access token'"})
+	table.Append([]string{"2️⃣  Click 'Create New Token'"})
 	table.Append([]string{"3️⃣  Copy the generated token"})
 	table.Append([]string{"4️⃣  Paste it below"})
 	table.Render()
 }
 
-// displayTokenInfo shows information about the stored token.
-func (tm *Manager) displayTokenInfo(token string) {
-	userName, err := user.Current()
+// displayTokenInfo shows information about the token.
+func (tm *Manager) displayTokenInfo(token string, valid bool) {
+	username, err := tm.getUsername()
 	if err != nil {
-		return // Silently fail for display purposes
+		return
 	}
 
-	maskedToken := tm.maskToken(token)
+	status := "✓ Valid"
+	if !valid {
+		status = "✗ Invalid"
+	}
 
-	table := tablewriter.NewTable(
-		os.Stdout,
-		tablewriter.WithConfig(tablewriter.Config{
-			Header: tw.CellConfig{
-				Alignment: tw.CellAlignment{Global: tw.AlignCenter},
-			},
-			Row: tw.CellConfig{
-				Alignment: tw.CellAlignment{PerColumn: []tw.Align{tw.AlignRight, tw.AlignLeft}},
-			},
-		}),
-	)
-
-	table.Header("Token Information")
+	table := tm.createTable("Token Information", tw.AlignRight, tw.AlignLeft)
 	table.Append([]string{"Service", tm.keyringService})
-	table.Append([]string{"User", userName.Username})
-	table.Append([]string{"Token", maskedToken})
+	table.Append([]string{"User", username})
+	table.Append([]string{"Token", tm.maskToken(token)})
 	table.Append([]string{"Length", fmt.Sprintf("%d characters", len(token))})
-	table.Append([]string{"Status", "✓ Valid"})
+	table.Append([]string{"Status", status})
 	table.Render()
 }
 
-// displayValidationError shows validation requirements in a table.
-func (tm *Manager) displayValidationError() {
-	fmt.Println("\n❌ Invalid token format!")
-	fmt.Println()
+// displayValidationResult shows the validation result in a formatted table.
+func (tm *Manager) displayValidationResult(token string, valid bool, err error) {
+	username, userErr := tm.getUsername()
+	if userErr != nil {
+		return
+	}
 
-	table := tablewriter.NewTable(
-		os.Stdout,
-		tablewriter.WithConfig(tablewriter.Config{
-			Header: tw.CellConfig{
-				Alignment: tw.CellAlignment{Global: tw.AlignCenter},
-			},
-			Row: tw.CellConfig{
-				Alignment: tw.CellAlignment{PerColumn: []tw.Align{tw.AlignRight, tw.AlignLeft}},
-			},
-		}),
-	)
+	status := "🟢 ✓ Valid"
+	if !valid {
+		status = "🔴 ✗ Invalid"
+	}
 
-	table.Header("Token Requirements")
-	table.Append([]string{"Length", "Exactly 43 characters"})
-	table.Append([]string{"Characters", "A-Z, a-z, 0-9, -, _"})
-	table.Append([]string{"Example", "AbC123-_xyz...  (43 chars total)"})
+	table := tm.createTable("Token Validation Result", tw.AlignRight, tw.AlignLeft)
+	table.Append([]string{"Service", tm.keyringService})
+	table.Append([]string{"User", username})
+	table.Append([]string{"Token", tm.maskToken(token)})
+	table.Append([]string{"Length", fmt.Sprintf("%d characters", len(token))})
+	table.Append([]string{"Status", status})
+
+	if !valid && err != nil {
+		table.Append([]string{"Error", err.Error()})
+	}
+
 	table.Render()
+}
+
+// createTable creates a tablewriter with standard configuration.
+func (tm *Manager) createTable(header string, alignments ...tw.Align) *tablewriter.Table {
+	config := tablewriter.Config{
+		Header: tw.CellConfig{
+			Alignment: tw.CellAlignment{Global: tw.AlignCenter},
+		},
+		Row: tw.CellConfig{
+			Alignment: tw.CellAlignment{Global: tw.AlignLeft},
+		},
+	}
+
+	if len(alignments) > 0 {
+		config.Row.Alignment = tw.CellAlignment{PerColumn: alignments}
+	}
+
+	table := tablewriter.NewTable(os.Stdout, tablewriter.WithConfig(config))
+	table.Header(header)
+	return table
 }
 
 // maskToken masks the middle portion of the token for security.
@@ -230,34 +281,5 @@ func (tm *Manager) maskToken(token string) string {
 		return strings.Repeat("*", len(token))
 	}
 
-	// Show first 5 and last 5 characters
-	start := token[:5]
-	end := token[len(token)-5:]
-	middle := strings.Repeat("*", len(token)-10)
-
-	return fmt.Sprintf("%s%s%s", start, middle, end)
-}
-
-// validateToken checks if the the token passed is valid.
-//
-// A token has following requirements:
-//   - Length: 43 characters
-//   - Valid characters: [ A-Z, a-z, 0-9, -, _ ]
-//
-//nolint:cyclop
-func validateToken(token string) error {
-	if len(token) != accessTokenLength {
-		return errInvalidToken
-	}
-
-	for _, c := range token {
-		if (c < 'a' || c > 'z') &&
-			(c < 'A' || c > 'Z') &&
-			(c < '0' || c > '9') &&
-			c != '-' && c != '_' {
-			return errInvalidToken
-		}
-	}
-
-	return nil
+	return token[:5] + strings.Repeat("*", len(token)-10) + token[len(token)-5:]
 }

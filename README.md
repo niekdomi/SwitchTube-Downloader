@@ -110,6 +110,9 @@ You can add optional flags to customize the download. For example:
   `01_OR_Mapping.mp4`. This is useful for channels with multiple videos. So you
   keep track of the order of the videos.
 
+  Keep in mind that the prefix might look like `04ar`. This is **not** a bug,
+  but the name set by the video uploader.
+
 - `-f`, `--force`: Forces the download to overwrite existing files. Use this
   flag with caution, as it will replace any existing files without confirmation.
   Force has also precedence over the `--skip` flag, meaning that if you use both

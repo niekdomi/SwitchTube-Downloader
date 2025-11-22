@@ -109,32 +109,47 @@ jobs:
             PERCENT=$(echo "$TOTAL_LINE" | grep -oP '\d+\.\d+%' | tail -1 || echo "N/A")
           fi
 
-          # Process coverage data: remove prefix, align columns
+          # Calculate per-file coverage
           echo "### 📊 Test Coverage Report" > "$OUTPUT"
           echo "" >> "$OUTPUT"
           echo "> **Overall Coverage**: $PERCENT" >> "$OUTPUT"
           echo "" >> "$OUTPUT"
           echo '```' >> "$OUTPUT"
 
-          # Remove 'switchtube-downloader' prefix and format with alignment
+          # Remove prefix and aggregate by file
           sed 's|switchtube-downloader||g' "$INPUT" | \
-            awk '{
+            awk '
               # Skip total line
-              if ($0 ~ /total:/) next;
+              /total:/ { next }
 
-              # Parse the line
-              file_func = $1
-              coverage = $2
+              {
+                # Parse the line
+                file_func = $1
+                coverage = $2
 
-              # Split file:line:function
-              split(file_func, parts, ":")
-              file = parts[1]
-              line = parts[2]
-              func = parts[3]
+                # Extract file path (everything before last colon and function name)
+                match(file_func, /^(.+):[0-9]+:/, arr)
+                if (arr[1] != "") {
+                  file = arr[1]
 
-              # Print formatted output
-              printf "%-50s %-30s %6s\n", file":"line":", func, coverage
-            }' >> "$OUTPUT"
+                  # Remove % sign and convert to number
+                  gsub(/%/, "", coverage)
+                  cov_num = coverage + 0
+
+                  # Accumulate coverage per file
+                  file_total[file] += cov_num
+                  file_count[file]++
+                }
+              }
+
+              END {
+                # Calculate and print average coverage per file
+                for (file in file_total) {
+                  avg = file_total[file] / file_count[file]
+                  printf "%-60s %6.1f%%\n", file, avg
+                }
+              }
+            ' | sort >> "$OUTPUT"
 
           echo '```' >> "$OUTPUT"
           echo "" >> "$OUTPUT"

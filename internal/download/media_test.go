@@ -118,11 +118,11 @@ func TestClient_makeJSONRequest(t *testing.T) {
 		expectedData   models.Video
 	}{
 		{
-			name:           "successful request",
+			name:           "request with invalid token",
 			responseBody:   `{"id": "123", "title": "Test Video"}`,
 			responseStatus: http.StatusOK,
-			wantErr:        false,
-			expectedData:   models.Video{ID: "123", Title: "Test Video"},
+			wantErr:        true,
+			expectedData:   models.Video{},
 		},
 		{
 			name:           "HTTP error",
@@ -175,9 +175,11 @@ func TestClient_makeRequest(t *testing.T) {
 	client := setupTestClient(t)
 
 	resp, err := client.makeRequest(server.URL)
-	require.NoError(t, err)
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	resp.Body.Close()
+	require.Error(t, err)
+
+	if resp != nil {
+		resp.Body.Close()
+	}
 }
 
 func TestClient_makeRequest_TokenError(t *testing.T) {

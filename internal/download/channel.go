@@ -58,7 +58,7 @@ func (cd *channelDownloader) downloadChannel(channelID string) error {
 
 	fmt.Printf("Found %d videos in channel: %s\n", len(videos), channelInfo.Name)
 
-	selectedIndices, err := ui.SelectVideos(videos, cd.config.All)
+	selectedIndices, err := ui.SelectVideos(videos, cd.config.All, cd.config.UseEpisode)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToSelectVideos, err)
 	}

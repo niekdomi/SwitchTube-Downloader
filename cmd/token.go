@@ -16,6 +16,7 @@ func init() {
 	tokenCmd.AddCommand(tokenGetCmd)
 	tokenCmd.AddCommand(tokenSetCmd)
 	tokenCmd.AddCommand(tokenDeleteCmd)
+	tokenCmd.AddCommand(tokenValidateCmd)
 }
 
 var tokenCmd = &cobra.Command{
@@ -63,8 +64,6 @@ var tokenSetCmd = &cobra.Command{
 
 			return
 		}
-
-		fmt.Println("Token successfully stored")
 	},
 }
 
@@ -80,7 +79,20 @@ var tokenDeleteCmd = &cobra.Command{
 
 			return
 		}
+	},
+}
 
-		fmt.Println("Token successfully deleted")
+var tokenValidateCmd = &cobra.Command{
+	Use:   "validate",
+	Short: "Validate the current access token",
+	Long:  "Checks if an access token is currently stored in the system keyring and validates it if there is one",
+	Run: func(_ *cobra.Command, _ []string) {
+		tokenMgr := token.NewTokenManager()
+
+		if err := tokenMgr.Validate(); err != nil {
+			fmt.Printf("Error validating token: %v\n", err)
+
+			return
+		}
 	},
 }

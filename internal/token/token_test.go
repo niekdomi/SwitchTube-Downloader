@@ -70,12 +70,12 @@ func TestGet(t *testing.T) {
 			name:        "token retrieval",
 			setupToken:  true,
 			tokenValue:  "test-token-123",
-			wantErrType: ErrTokenInvalid,
+			wantErrType: errTokenInvalid,
 		},
 		{
 			name:        "token not found",
 			setupToken:  false,
-			wantErrType: ErrNoToken,
+			wantErrType: errNoToken,
 		},
 	}
 
@@ -107,20 +107,20 @@ func TestSet(t *testing.T) {
 			name:        "new token creation",
 			input:       "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE\n",
 			wantErr:     true,
-			wantErrType: ErrTokenInvalid,
+			wantErrType: errTokenInvalid,
 		},
 		{
 			name:          "replace existing token",
 			existingToken: true,
 			input:         "n\n",
 			wantErr:       true,
-			wantErrType:   ErrTokenInvalid,
+			wantErrType:   errTokenInvalid,
 		},
 		{
 			name:        "empty token input",
 			input:       "\n",
 			wantErr:     true,
-			wantErrType: ErrTokenEmpty,
+			wantErrType: errTokenEmpty,
 		},
 	}
 
@@ -136,10 +136,10 @@ func TestSet(t *testing.T) {
 
 			err := tokenMgr.Set()
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 
 				if tt.wantErrType != nil {
-					assert.ErrorIs(t, err, tt.wantErrType)
+					require.ErrorIs(t, err, tt.wantErrType)
 				}
 			} else {
 				assert.NoError(t, err)
@@ -172,7 +172,7 @@ func TestDelete(t *testing.T) {
 
 			err := tokenMgr.Delete()
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), "no token found")
 			} else {
 				assert.NoError(t, err)
@@ -215,7 +215,7 @@ func TestValidate(t *testing.T) {
 
 			err := tokenMgr.Validate()
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}

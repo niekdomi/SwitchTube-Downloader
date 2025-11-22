@@ -175,7 +175,7 @@ func TestClient_makeRequest(t *testing.T) {
 	client := setupTestClient(t)
 
 	resp, err := client.makeRequest(server.URL)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	if resp != nil {
 		resp.Body.Close()

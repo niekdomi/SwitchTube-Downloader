@@ -81,6 +81,7 @@ func renderVideoTable(videos []models.Video, useEpisode bool) error {
 
 	table := tablewriter.NewTable(
 		os.Stdout,
+		//nolint:exhaustruct
 		tablewriter.WithConfig(tablewriter.Config{
 			Header: tw.CellConfig{
 				Alignment: tw.CellAlignment{

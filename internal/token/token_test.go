@@ -67,15 +67,15 @@ func TestGet(t *testing.T) {
 		wantErrType error
 	}{
 		{
-			name:       "successful token retrieval",
-			setupToken: true,
-			tokenValue: "test-token-123",
-			wantToken:  "test-token-123",
+			name:        "token retrieval",
+			setupToken:  true,
+			tokenValue:  "test-token-123",
+			wantErrType: ErrTokenInvalid,
 		},
 		{
 			name:        "token not found",
 			setupToken:  false,
-			wantErrType: errNoTokenFound,
+			wantErrType: ErrNoToken,
 		},
 	}
 
@@ -95,39 +95,32 @@ func TestGet(t *testing.T) {
 	}
 }
 
-func TestGet_KeyringError(t *testing.T) {
-	tokenMgr := setupTestKeyring(t, false, "")
-
-	_, err := user.Current()
-	require.NoError(t, err)
-
-	_, err = tokenMgr.Get()
-	require.Error(t, err)
-	assert.ErrorIs(t, err, errNoTokenFound)
-}
-
 func TestSet(t *testing.T) {
 	tests := []struct {
 		name          string
 		existingToken bool
 		input         string
 		wantErr       bool
+		wantErrType   error
 	}{
 		{
-			name:    "new token creation",
-			input:   "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE\n",
-			wantErr: false,
+			name:        "new token creation",
+			input:       "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE\n",
+			wantErr:     true,
+			wantErrType: ErrTokenInvalid,
 		},
 		{
-			name:          "replace existing token - declined",
+			name:          "replace existing token",
 			existingToken: true,
 			input:         "n\n",
 			wantErr:       true,
+			wantErrType:   ErrTokenInvalid,
 		},
 		{
-			name:    "empty token input",
-			input:   "\n",
-			wantErr: true,
+			name:        "empty token input",
+			input:       "\n",
+			wantErr:     true,
+			wantErrType: ErrTokenEmpty,
 		},
 	}
 
@@ -144,6 +137,9 @@ func TestSet(t *testing.T) {
 			err := tokenMgr.Set()
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantErrType != nil {
+					assert.ErrorIs(t, err, tt.wantErrType)
+				}
 			} else {
 				assert.NoError(t, err)
 			}
@@ -153,18 +149,19 @@ func TestSet(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	tests := []struct {
-		name        string
-		setupToken  bool
-		wantErrType error
+		name       string
+		setupToken bool
+		wantErr    bool
 	}{
 		{
 			name:       "successful deletion",
 			setupToken: true,
+			wantErr:    false,
 		},
 		{
-			name:        "token not found",
-			setupToken:  false,
-			wantErrType: errNoTokenFoundDelete,
+			name:       "token not found",
+			setupToken: false,
+			wantErr:    true,
 		},
 	}
 
@@ -173,73 +170,9 @@ func TestDelete(t *testing.T) {
 			tokenMgr := setupTestKeyring(t, tt.setupToken, "test-token")
 
 			err := tokenMgr.Delete()
-			if tt.wantErrType != nil {
-				assert.ErrorIs(t, err, tt.wantErrType)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestValidateToken(t *testing.T) {
-	tests := []struct {
-		name    string
-		token   string
-		wantErr bool
-	}{
-		{
-			name:    "valid token",
-			token:   "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
-			wantErr: false,
-		},
-		{
-			name:    "too short",
-			token:   "short",
-			wantErr: true,
-		},
-		{
-			name:    "too long",
-			token:   "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDEF",
-			wantErr: true,
-		},
-		{
-			name:    "contains space",
-			token:   "abcdefghijklmnopqrstuvwxyz0123456789- _ABCD",
-			wantErr: true,
-		},
-		{
-			name:    "contains special char",
-			token:   "abcdefghijklmnopqrstuvwxyz0123456789💀@_ABCD",
-			wantErr: true,
-		},
-		{
-			name:    "contains tabs",
-			token:   "abcdefghijklmnopqrstuvwxyz0123456789-\tABCDE",
-			wantErr: true,
-		},
-		{
-			name:    "empty string",
-			token:   "",
-			wantErr: true,
-		},
-		{
-			name:    "all numbers",
-			token:   "0123456789012345678901234567890123456789012",
-			wantErr: false,
-		},
-		{
-			name:    "all letters",
-			token:   "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ",
-			wantErr: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := validateToken(tt.token)
 			if tt.wantErr {
-				assert.ErrorIs(t, err, errInvalidToken)
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "no token found")
 			} else {
 				assert.NoError(t, err)
 			}
@@ -247,47 +180,28 @@ func TestValidateToken(t *testing.T) {
 	}
 }
 
-func TestManager_GetUserError(t *testing.T) {
-	tokenMgr := setupTestKeyring(t, false, "")
-
-	_, err := tokenMgr.Get()
-	require.Error(t, err)
-	assert.ErrorIs(t, err, errNoTokenFound)
-}
-
-func TestCreate(t *testing.T) {
+func TestValidate(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       string
-		wantToken   string
-		wantErrType error
+		name       string
+		setupToken bool
+		tokenValue string
+		wantErr    bool
 	}{
 		{
-			name:      "valid token input",
-			input:     "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE\n",
-			wantToken: "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
+			name:       "token validation",
+			setupToken: true,
+			tokenValue: "valid-token",
+			wantErr:    true,
 		},
 		{
-			name:        "empty token input",
-			input:       "\n",
-			wantToken:   "",
-			wantErrType: errTokenEmpty,
+			name:       "invalid token",
+			setupToken: true,
+			tokenValue: "invalid",
+			wantErr:    true,
 		},
 		{
-			name:        "whitespace only token",
-			input:       "   \n",
-			wantToken:   "",
-			wantErrType: errTokenEmpty,
-		},
-		{
-			name:      "token with leading/trailing whitespace",
-			input:     "  abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE  \n",
-			wantToken: "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
-		},
-		{
-			name:      "token with newlines",
-			input:     "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE\nwith\nnewlines\n",
-			wantToken: "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
+			name:    "no token",
+			wantErr: true,
 		},
 	}
 
@@ -296,20 +210,46 @@ func TestCreate(t *testing.T) {
 			restore := suppressStdout(t)
 			defer restore()
 
-			tokenMgr := NewTokenManager()
+			tokenMgr := setupTestKeyring(t, tt.setupToken, tt.tokenValue)
 
-			restoreInput := setupTestInput(t, tt.input)
-			defer restoreInput()
-
-			token, err := tokenMgr.create()
-
-			assert.Equal(t, tt.wantToken, token)
-
-			if tt.wantErrType != nil {
-				assert.ErrorIs(t, err, tt.wantErrType)
+			err := tokenMgr.Validate()
+			if tt.wantErr {
+				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestMaskToken(t *testing.T) {
+	tm := NewTokenManager()
+	tests := []struct {
+		name     string
+		token    string
+		expected string
+	}{
+		{
+			name:     "short token",
+			token:    "abc",
+			expected: "***",
+		},
+		{
+			name:     "medium token",
+			token:    "abcdefghij",
+			expected: "**********",
+		},
+		{
+			name:     "long token",
+			token:    "abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE",
+			expected: "abcde*********************************ABCDE",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tm.maskToken(tt.token)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

@@ -122,24 +122,22 @@ jobs:
               # Skip total line
               /total:/ { next }
 
-              {
-                # Parse the line
-                file_func = $1
-                coverage = $2
+              NF >= 2 {
+                # The format is: file:line:function coverage%
+                # Last field is coverage, second-to-last is function name
+                coverage = $NF
 
-                # Extract file path (everything before last colon and function name)
-                match(file_func, /^(.+):[0-9]+:/, arr)
-                if (arr[1] != "") {
-                  file = arr[1]
+                # Get the file path (first field up to the second colon)
+                split($1, parts, ":")
+                file = parts[1]
 
-                  # Remove % sign and convert to number
-                  gsub(/%/, "", coverage)
-                  cov_num = coverage + 0
+                # Remove % sign and convert to number
+                gsub(/%/, "", coverage)
+                cov_num = coverage + 0
 
-                  # Accumulate coverage per file
-                  file_total[file] += cov_num
-                  file_count[file]++
-                }
+                # Accumulate coverage per file
+                file_total[file] += cov_num
+                file_count[file]++
               }
 
               END {

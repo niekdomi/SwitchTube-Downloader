@@ -52,6 +52,7 @@ func (tm *Manager) Get() (string, error) {
 		if errors.Is(err, keyring.ErrNotFound) {
 			return "", ErrNoToken
 		}
+
 		return "", fmt.Errorf("failed to retrieve token: %w", err)
 	}
 
@@ -69,15 +70,18 @@ func (tm *Manager) Set() error {
 	}
 
 	tm.displayInstructions()
+
 	token := strings.TrimSpace(ui.Input("\n🔑 Enter your access token: "))
 	if token == "" {
 		return ErrTokenEmpty
 	}
 
 	fmt.Println("\n🔍 Validating token with SwitchTube API...")
+
 	if err := tm.validateToken(token); err != nil {
 		fmt.Println("\n❌ Token validation failed")
 		tm.displayValidationResult(token, false, err)
+
 		return err
 	}
 
@@ -107,10 +111,12 @@ func (tm *Manager) Delete() error {
 		if errors.Is(err, keyring.ErrNotFound) {
 			return fmt.Errorf("no token found in keyring for %s", tm.keyringService)
 		}
+
 		return fmt.Errorf("failed to delete token: %w", err)
 	}
 
 	fmt.Println("✅ Token successfully deleted from keyring")
+
 	return nil
 }
 
@@ -122,10 +128,12 @@ func (tm *Manager) Validate() error {
 	token, err := tm.Get()
 	if err != nil {
 		tm.displayValidationResult(token, false, err)
+
 		return err
 	}
 
 	tm.displayValidationResult(token, true, nil)
+
 	return nil
 }
 
@@ -135,6 +143,7 @@ func (tm *Manager) getUsername() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get current user: %w", err)
 	}
+
 	return u.Username, nil
 }
 
@@ -150,6 +159,7 @@ func (tm *Manager) checkExistingToken() error {
 
 	if !ui.Confirm("🔄 Do you want to replace it?") {
 		fmt.Println("❌ Operation cancelled")
+
 		return ErrTokenAlreadyExists
 	}
 
@@ -173,12 +183,14 @@ func (tm *Manager) createTable(header string, alignments ...tw.Align) *tablewrit
 
 	table := tablewriter.NewTable(os.Stdout, tablewriter.WithConfig(config))
 	table.Header(header)
+
 	return table
 }
 
 // displayInstructions shows formatted instructions for token creation.
 func (tm *Manager) displayInstructions() {
 	fmt.Println()
+
 	table := tm.createTable("📋 Token Creation Instructions", tw.AlignLeft)
 	table.Append([]string{fmt.Sprintf("1️⃣  Visit: %s", createAccessTokenURL)})
 	table.Append([]string{"2️⃣  Click 'Create New Token'"})

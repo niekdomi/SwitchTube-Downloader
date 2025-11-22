@@ -176,6 +176,7 @@ func TestClient_makeRequest(t *testing.T) {
 
 	resp, err := client.makeRequest(server.URL)
 	assert.Error(t, err)
+
 	if resp != nil {
 		resp.Body.Close()
 	}

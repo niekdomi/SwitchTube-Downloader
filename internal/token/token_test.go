@@ -137,6 +137,7 @@ func TestSet(t *testing.T) {
 			err := tokenMgr.Set()
 			if tt.wantErr {
 				assert.Error(t, err)
+
 				if tt.wantErrType != nil {
 					assert.ErrorIs(t, err, tt.wantErrType)
 				}

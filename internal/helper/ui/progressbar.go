@@ -26,7 +26,8 @@ func ProgressBar(
 	dst io.Writer,
 	total int64,
 	filename string,
-	currentItem, totalItems int,
+	currentItem int,
+	totalItems int,
 ) error {
 	p := mpb.New(
 		mpb.WithWidth(progressBarWidth),

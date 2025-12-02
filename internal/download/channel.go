@@ -164,7 +164,7 @@ func (cd *channelDownloader) prepareDownloads(
 }
 
 // printResults displays the download results summary.
-func (cd *channelDownloader) printResults(downloadCount, selectedCount int, failed []string) {
+func (cd *channelDownloader) printResults(downloadCount int, selectedCount int, failed []string) {
 	fmt.Printf("\nDownload complete! %d/%d videos successful\n",
 		downloadCount-len(failed), selectedCount)
 

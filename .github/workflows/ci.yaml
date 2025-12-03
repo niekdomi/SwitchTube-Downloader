@@ -142,7 +142,7 @@ jobs:
           go test -coverprofile=coverage.out ./internal/...
           go tool cover -func=coverage.out > coverage.txt
 
-      - name: Generate coverage markdown
+      - name: Generate coverage report
         if: github.event_name == 'pull_request'
         run: bash .github/scripts/generate-coverage-md.sh
 

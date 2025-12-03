@@ -142,14 +142,13 @@ jobs:
           go test -coverprofile=coverage.out ./internal/...
           go tool cover -func=coverage.out > coverage.txt
 
-      - name: Convert coverage to Markdown
+      - name: Generate coverage report
         if: github.event_name == 'pull_request'
-        run: ./.github/scripts/generate_coverage_report.sh
+        run: bash .github/scripts/generate-coverage-md.sh
 
-      - name: Add coverage comment to PR
+      - name: Post coverage comment
         if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: coverage-report
           path: coverage.md
-          recreate: true

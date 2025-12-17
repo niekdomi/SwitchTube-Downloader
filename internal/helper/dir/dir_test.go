@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"switchtube-downloader/internal/models"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"switchtube-downloader/internal/models"
 )
 
 func setupTestIO(t *testing.T, input string) (func(), func() string) {

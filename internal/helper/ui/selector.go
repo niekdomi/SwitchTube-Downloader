@@ -27,7 +27,7 @@ var (
 )
 
 // SelectVideos displays the video list and handles user selection.
-func SelectVideos(videos []models.Video, all bool, useEpisode bool) ([]int, error) {
+func SelectVideos(videos []models.Video, all, useEpisode bool) ([]int, error) {
 	// If --all flag is used, select all videos
 	if all || len(videos) == 0 {
 		indices := make([]int, len(videos))
@@ -161,12 +161,7 @@ func parseSelection(input string, availableVideos int) ([]int, error) {
 }
 
 // handleRangeSelection processes a range selection like "1-5".
-func handleRangeSelection(
-	part string,
-	availableVideos int,
-	indices []int,
-	seen map[int]bool,
-) ([]int, error) {
+func handleRangeSelection(part string, availableVideos int, indices []int, seen map[int]bool) ([]int, error) {
 	rangeParts := strings.Split(part, "-")
 	if len(rangeParts) != rangePartsCount {
 		return nil, fmt.Errorf("%w: %s", errInvalidRangeFormat, part)
@@ -204,12 +199,7 @@ func handleRangeSelection(
 }
 
 // handleSingleSelection processes a single number selection.
-func handleSingleSelection(
-	part string,
-	availableVideos int,
-	indices []int,
-	seen map[int]bool,
-) ([]int, error) {
+func handleSingleSelection(part string, availableVideos int, indices []int, seen map[int]bool) ([]int, error) {
 	num, err := strconv.Atoi(part)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", errInvalidNumber, part)

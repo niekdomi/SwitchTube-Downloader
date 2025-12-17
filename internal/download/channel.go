@@ -124,11 +124,7 @@ func (cd *channelDownloader) getVideos(channelID string) ([]models.Video, error)
 }
 
 // prepareDownloads checks which videos need to be downloaded and validates their availability.
-func (cd *channelDownloader) prepareDownloads(
-	videos []models.Video,
-	indices []int,
-	failed *[]string,
-) []int {
+func (cd *channelDownloader) prepareDownloads(videos []models.Video, indices []int, failed *[]string) []int {
 	var toDownload []int
 
 	for _, idx := range indices {

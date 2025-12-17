@@ -29,12 +29,7 @@ var (
 )
 
 // CreateFilename creates a sanitized filename from video title and media type.
-func CreateFilename(
-	title string,
-	mediaType string,
-	episodeNr string,
-	config models.DownloadConfig,
-) string {
+func CreateFilename(title string, mediaType string, episodeNr string, config models.DownloadConfig) string {
 	// Extract extension from media type (e.g., "video/mp4" -> "mp4")
 	parts := strings.Split(mediaType, "/")
 

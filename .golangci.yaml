@@ -54,5 +54,8 @@ linters:
 
 formatters:
   enable:
-    - gofmt
-    - golines
+    - gofumpt
+
+  settings:
+    gofumpt:
+      module-path: switchtube-downloader

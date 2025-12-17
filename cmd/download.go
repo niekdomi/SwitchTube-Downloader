@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/spf13/cobra"
-
 	"switchtube-downloader/internal/download"
 	"switchtube-downloader/internal/models"
+
+	"github.com/spf13/cobra"
 )
 
 // init initializes the download command and adds it to the root command with

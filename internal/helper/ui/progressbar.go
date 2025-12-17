@@ -19,16 +19,8 @@ const (
 
 var errFailedToCopyData = errors.New("failed to copy data")
 
-// ProgressBar sets up a progress bar for downloading and copies data from
-// src to dst.
-func ProgressBar(
-	src io.Reader,
-	dst io.Writer,
-	total int64,
-	filename string,
-	currentItem int,
-	totalItems int,
-) error {
+// ProgressBar sets up a progress bar for downloading and copies data from src to dst.
+func ProgressBar(src io.Reader, dst io.Writer, total int64, filename string, currentItem int, totalItems int) error {
 	p := mpb.New(
 		mpb.WithWidth(progressBarWidth),
 		mpb.WithRefreshRate(refreshRateMs*time.Millisecond),
@@ -37,9 +29,7 @@ func ProgressBar(
 	bar := p.New(total,
 		mpb.BarStyle().Rbound("|"),
 		mpb.PrependDecorators(
-			decor.Name(
-				fmt.Sprintf("[%d/%d] %s ", currentItem, totalItems, filepath.Base(filename)),
-			),
+			decor.Name(fmt.Sprintf("[%d/%d] %s ", currentItem, totalItems, filepath.Base(filename))),
 			decor.Counters(decor.SizeB1024(0), "% .2f / % .2f"),
 		),
 		mpb.AppendDecorators(

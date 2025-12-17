@@ -19,10 +19,10 @@ import (
 )
 
 const (
-	serviceName          = "SwitchTube"
-	createAccessTokenURL = "https://tube.switch.ch/access_tokens"
-	profileAPIURL        = "https://tube.switch.ch/api/v1/profiles/me"
-	timeout              = 10
+	serviceName           = "SwitchTube"
+	createAccessTokenURL  = "https://tube.switch.ch/access_tokens"
+	profileAPIURL         = "https://tube.switch.ch/api/v1/profiles/me"
+	requestTimeoutSeconds = 10
 )
 
 const (
@@ -207,8 +207,10 @@ func (tm *Manager) displayTokenInfo(token string, valid bool) {
 		return
 	}
 
-	status := "🟢 Valid"
-	if !valid {
+	var status string
+	if valid {
+		status = "🟢 Valid"
+	} else {
 		status = "🔴 Invalid"
 	}
 
@@ -254,7 +256,7 @@ func (tm *Manager) validateToken(token string) error {
 	req.Header.Set("Accept", "application/json")
 
 	client := &http.Client{
-		Timeout:       timeout * time.Second,
+		Timeout:       requestTimeoutSeconds * time.Second,
 		Transport:     nil,
 		CheckRedirect: nil,
 		Jar:           nil,

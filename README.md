@@ -152,6 +152,7 @@ Available Commands:
   delete      Delete access token from the keyring
   get         Get the current access token
   set         Set a new access token
+  validate    Validate the current access token
 
 Flags:
   -h, --help   help for token
@@ -159,23 +160,7 @@ Flags:
 Use "SwitchTube-Downloader token [command] --help" for more information about a command.
 </code></pre>
 
-**Note**: The `delete` subcommand removes the token without a confirmation
-prompt, so use it carefully.
-
 </details>
-
-## Why to choose (this) SwitchTube-Downloader?
-
-| Feature                        | [SwitchTube-Downloader](https://github.com/niekdomi/SwitchTube-Downloader) |
-| ------------------------------ | -------------------------------------------------------------------------- |
-| **Binary Size**                | 7.2MB (light)                                                              |
-| **Store Access Token**         | Automatic storage                                                          |
-| **Encrypted Access Token**     | Secure encryption                                                          |
-| **Intuitive Downloads**        | One simple command                                                         |
-| **Video download**             | Supported                                                                  |
-| **Channel download**           | Supported                                                                  |
-| **Select videos of a channel** | Supported                                                                  |
-| **Support ID and URL**         | Supported                                                                  |
 
 ## FAQ
 
@@ -195,20 +180,3 @@ there is enough interest, I might implement this feature in the future.
 
 Currently, the downloader does not support this. If there is enough interest,
 I might implement this feature in the future.
-
-## Testing the SwitchTube API
-
-For developers or curious users, you can interact directly with the SwitchTube
-API using the following command:
-
-```bash
-curl -H "Authorization: Token {your_token}" \
-        https://tube.switch.ch/api/v1/xxx
-```
-
-E.g., you can write the output to a file to examine the JSON structure:
-
-```bash
-curl -H "Authorization: Token {your_token}" \
-        https://tube.switch.ch/api/v1/browse/channels/{channel_id}/videos | tee tmp.json
-```

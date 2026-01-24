@@ -56,6 +56,12 @@ func (tm *Manager) Delete() error {
 		return err
 	}
 
+	// Confirm deletion
+	if !ui.Confirm("Are you sure you want to delete the stored token?") {
+		fmt.Printf("%s[CANCELLED]%s Token deletion cancelled\n", ui.Warning, ui.Reset)
+		return nil
+	}
+
 	if err := keyring.Delete(tm.keyringService, username); err != nil {
 		if errors.Is(err, keyring.ErrNotFound) {
 			return fmt.Errorf("%w for %s", errNoToken, tm.keyringService)
@@ -64,7 +70,7 @@ func (tm *Manager) Delete() error {
 		return fmt.Errorf("failed to delete token: %w", err)
 	}
 
-	fmt.Println("✅ Token successfully deleted from keyring")
+	fmt.Printf("%s[SUCCESS]%s Token successfully deleted from keyring\n", ui.Success, ui.Reset)
 
 	return nil
 }
@@ -100,15 +106,15 @@ func (tm *Manager) Set() error {
 
 	tm.displayInstructions()
 
-	token := strings.TrimSpace(ui.Input("\n🔑 Enter your access token: "))
+	token := strings.TrimSpace(ui.Input("\nEnter your access token: "))
 	if token == "" {
 		return errTokenEmpty
 	}
 
-	fmt.Println("\n🔍 Validating token with SwitchTube API...")
+	fmt.Printf("\n%s[INFO]%s Validating token with SwitchTube API...\n", ui.Info, ui.Reset)
 
 	if err := tm.validateToken(token); err != nil {
-		fmt.Println("\n❌ Token validation failed")
+		fmt.Printf("\n%s[ERROR]%s Token validation failed\n", ui.Error, ui.Reset)
 		tm.displayTokenInfo(token, false)
 
 		return err
@@ -124,14 +130,14 @@ func (tm *Manager) Set() error {
 	}
 
 	tm.displayTokenInfo(token, true)
-	fmt.Println("✅ Token is valid and successfully stored in keyring")
+	fmt.Printf("%s[SUCCESS]%s Token is valid and successfully stored in keyring\n", ui.Success, ui.Reset)
 
 	return nil
 }
 
 // Validate validates the stored token and displays its status.
 func (tm *Manager) Validate() error {
-	fmt.Println("\n🔍 Validating token...")
+	fmt.Printf("\n%s[INFO]%s Validating token...\n", ui.Info, ui.Reset)
 
 	// Get() already performs validation
 	token, err := tm.Get()
@@ -157,8 +163,8 @@ func (tm *Manager) checkExistingToken() error {
 
 	fmt.Println()
 
-	if !ui.Confirm("🔄 Do you want to replace it?") {
-		fmt.Println("❌ Operation cancelled")
+	if !ui.Confirm("Do you want to replace it?") {
+		fmt.Printf("%s[CANCELLED]%s Operation cancelled\n", ui.Warning, ui.Reset)
 
 		return ErrTokenAlreadyExists
 	}
@@ -192,11 +198,11 @@ func (tm *Manager) createTable(header string, alignments ...tw.Align) *tablewrit
 func (tm *Manager) displayInstructions() {
 	fmt.Println()
 
-	table := tm.createTable("📋 Token Creation Instructions", tw.AlignLeft)
-	_ = table.Append([]string{"1️⃣  Visit: " + createAccessTokenURL})
-	_ = table.Append([]string{"2️⃣  Click 'Create New Token'"})
-	_ = table.Append([]string{"3️⃣  Copy the generated token"})
-	_ = table.Append([]string{"4️⃣  Paste it below"})
+	table := tm.createTable("Token Creation Instructions", tw.AlignLeft)
+	_ = table.Append([]string{ui.Bold + "1." + ui.Reset + " Visit: " + createAccessTokenURL})
+	_ = table.Append([]string{ui.Bold + "2." + ui.Reset + " Click 'Create New Token'"})
+	_ = table.Append([]string{ui.Bold + "3." + ui.Reset + " Copy the generated token"})
+	_ = table.Append([]string{ui.Bold + "4." + ui.Reset + " Paste it below"})
 	_ = table.Render()
 }
 
@@ -209,9 +215,9 @@ func (tm *Manager) displayTokenInfo(token string, valid bool) {
 
 	var status string
 	if valid {
-		status = "🟢 Valid"
+		status = ui.Success + "Valid" + ui.Reset
 	} else {
-		status = "🔴 Invalid"
+		status = ui.Error + "Invalid" + ui.Reset
 	}
 
 	table := tm.createTable("Token Information", tw.AlignRight, tw.AlignLeft)
@@ -256,10 +262,7 @@ func (tm *Manager) validateToken(token string) error {
 	req.Header.Set("Accept", "application/json")
 
 	client := &http.Client{
-		Timeout:       requestTimeoutSeconds * time.Second,
-		Transport:     nil,
-		CheckRedirect: nil,
-		Jar:           nil,
+		Timeout: requestTimeoutSeconds * time.Second,
 	}
 
 	resp, err := client.Do(req)

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"switchtube-downloader/internal/download"
+	"switchtube-downloader/internal/helper/ui"
 	"switchtube-downloader/internal/models"
 
 	"github.com/spf13/cobra"
@@ -31,35 +32,35 @@ var downloadCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		episode, err := cmd.Flags().GetBool("episode")
 		if err != nil {
-			fmt.Printf("Error getting episode flag: %v", err)
+			fmt.Printf("%s[ERROR]%s Error getting episode flag: %v\n", ui.Error, ui.Reset, err)
 
 			return
 		}
 
 		skip, err := cmd.Flags().GetBool("skip")
 		if err != nil {
-			fmt.Printf("Error getting skip flag: %v", err)
+			fmt.Printf("%s[ERROR]%s Error getting skip flag: %v\n", ui.Error, ui.Reset, err)
 
 			return
 		}
 
 		force, err := cmd.Flags().GetBool("force")
 		if err != nil {
-			fmt.Printf("Error getting force flag: %v", err)
+			fmt.Printf("%s[ERROR]%s Error getting force flag: %v\n", ui.Error, ui.Reset, err)
 
 			return
 		}
 
 		all, err := cmd.Flags().GetBool("all")
 		if err != nil {
-			fmt.Printf("Error getting all flag: %v", err)
+			fmt.Printf("%s[ERROR]%s Error getting all flag: %v\n", ui.Error, ui.Reset, err)
 
 			return
 		}
 
 		output, err := cmd.Flags().GetString("output")
 		if err != nil {
-			fmt.Printf("Error getting output flag: %v", err)
+			fmt.Printf("%s[ERROR]%s Error getting output flag: %v\n", ui.Error, ui.Reset, err)
 
 			return
 		}
@@ -75,7 +76,7 @@ var downloadCmd = &cobra.Command{
 
 		err = download.Download(config)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			fmt.Printf("%s[ERROR]%s %v\n", ui.Error, ui.Reset, err)
 
 			return
 		}

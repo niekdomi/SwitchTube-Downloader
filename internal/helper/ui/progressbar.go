@@ -5,57 +5,119 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
-
-	"github.com/vbauerster/mpb/v8"
-	"github.com/vbauerster/mpb/v8/decor"
 )
 
 const (
-	progressBarWidth   = 60
-	refreshRateMs      = 200
-	etaSmoothingFactor = 30
+	refreshRateMs = 100
+	minUpdateGap  = 50 * time.Millisecond
 )
 
-var errFailedToCopyData = errors.New("failed to copy data")
+var (
+	errFailedToCopyData = errors.New("failed to copy data")
+	displayMutex        sync.Mutex // Prevents concurrent display updates
+)
+
+// progressWriter wraps an io.Writer and tracks progress.
+type progressWriter struct {
+	writer           io.Writer
+	total            int64
+	written          int64
+	startTime        time.Time
+	lastUpdate       time.Time
+	filename         string
+	rowIndex         int // Row index for multi-line progress display (0 = single line mode)
+	maxFilenameWidth int // Maximum filename width for alignment (0 = no padding)
+}
+
+// Write implements io.Writer and updates progress.
+func (pw *progressWriter) Write(p []byte) (int, error) {
+	n, err := pw.writer.Write(p)
+	pw.written += int64(n)
+
+	// Update progress display
+	now := time.Now()
+	if now.Sub(pw.lastUpdate) >= minUpdateGap {
+		pw.lastUpdate = now
+		pw.displayProgress()
+	}
+
+	return n, err
+}
+
+// displayProgress renders the progress bar to stdout.
+func (pw *progressWriter) displayProgress() {
+	elapsed := time.Since(pw.startTime).Seconds()
+	if elapsed == 0 {
+		elapsed = 0.001 // Prevent division by zero
+	}
+
+	percentage := 0.0
+	if pw.total > 0 {
+		percentage = (float64(pw.written) / float64(pw.total)) * 100.0
+	}
+
+	speed := (float64(pw.written) / elapsed)
+
+	displayMutex.Lock()
+	defer displayMutex.Unlock()
+
+	basename := filepath.Base(pw.filename)
+	// Pad filename if maxFilenameWidth is set
+	if pw.maxFilenameWidth > 0 && len(basename) < pw.maxFilenameWidth {
+		basename = basename + strings.Repeat(" ", pw.maxFilenameWidth-len(basename))
+	}
+
+	if pw.rowIndex > 0 {
+		// Multi-line mode: save cursor, move up to target row, update, restore cursor
+		fmt.Print("\033[s")                                                   // Save cursor position
+		fmt.Printf("\033[%dA", pw.rowIndex)                                   // Move up rowIndex lines
+		fmt.Printf("\r\033[K%s %s", basename, renderProgressBar(percentage, speed)) // Clear line and print
+		fmt.Print("\033[u")                                                   // Restore cursor position
+	} else {
+		// Single-line mode: use carriage return
+		fmt.Printf("\r%s %s", basename, renderProgressBar(percentage, speed))
+	}
+}
+
+// finalize completes the progress display.
+func (pw *progressWriter) finalize() {
+	pw.displayProgress()
+	if pw.rowIndex == 0 {
+		// Only print newline in single-line mode
+		fmt.Println()
+	}
+}
 
 // ProgressBar sets up a progress bar for downloading and copies data from src to dst.
-func ProgressBar(src io.Reader, dst io.Writer, total int64, filename string, currentItem int, totalItems int) error {
-	p := mpb.New(
-		mpb.WithWidth(progressBarWidth),
-		mpb.WithRefreshRate(refreshRateMs*time.Millisecond),
-	)
+func ProgressBar(src io.Reader, dst io.Writer, total int64, filename string) error {
+	return ProgressBarWithRow(src, dst, total, filename, 0, 0)
+}
 
-	bar := p.New(total,
-		mpb.BarStyle().Rbound("|"),
-		mpb.PrependDecorators(
-			decor.Name(fmt.Sprintf("[%d/%d] %s ", currentItem, totalItems, filepath.Base(filename))),
-			decor.Counters(decor.SizeB1024(0), "% .2f / % .2f"),
-		),
-		mpb.AppendDecorators(
-			decor.EwmaETA(decor.ET_STYLE_GO, etaSmoothingFactor),
-			decor.Name(" ] "),
-			decor.EwmaSpeed(decor.SizeB1024(0), "% .2f", etaSmoothingFactor),
-		),
-	)
+// ProgressBarWithRow sets up a progress bar with a specific row index for multi-line display.
+// rowIndex 0 means single-line mode (uses \r), rowIndex > 0 uses cursor positioning.
+// maxFilenameWidth is used for padding filenames to align progress bars (0 = no padding).
+func ProgressBarWithRow(src io.Reader, dst io.Writer, total int64, filename string, rowIndex int, maxFilenameWidth int) error {
+	pw := &progressWriter{
+		writer:           dst,
+		total:            total,
+		written:          0,
+		startTime:        time.Now(),
+		lastUpdate:       time.Now(),
+		filename:         filename,
+		rowIndex:         rowIndex,
+		maxFilenameWidth: maxFilenameWidth,
+	}
 
-	proxyReader := bar.ProxyReader(src)
-
-	defer func() {
-		if err := proxyReader.Close(); err != nil {
-			fmt.Printf("error waiting for progress bar: %v\n", err)
-		}
-	}()
-
-	start := time.Now()
-
-	if _, err := io.Copy(dst, proxyReader); err != nil {
+	// Copy data with progress tracking
+	if _, err := io.Copy(pw, src); err != nil {
 		return fmt.Errorf("%w: %w", errFailedToCopyData, err)
 	}
 
-	bar.EwmaIncrInt64(total, time.Since(start))
-
-	p.Wait()
+	// Final update
+	pw.finalize()
 
 	return nil
 }

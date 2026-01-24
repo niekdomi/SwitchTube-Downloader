@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"path/filepath"
+	"sync"
 
 	"switchtube-downloader/internal/helper/dir"
 	"switchtube-downloader/internal/helper/ui"
@@ -38,8 +40,8 @@ func newChannelDownloader(config models.DownloadConfig, client *Client) *channel
 	}
 }
 
-// downloadChannel downloads selected videos from a channel.
-func (cd *channelDownloader) downloadChannel(channelID string) error {
+// download downloads selected videos from a channel.
+func (cd *channelDownloader) download(channelID string) error {
 	channelInfo, err := cd.getMetadata(channelID)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToGetChannelInfo, err)
@@ -129,11 +131,7 @@ func (cd *channelDownloader) prepareDownloads(videos []models.Video, indices []i
 
 	for _, idx := range indices {
 		video := videos[idx]
-		downloader := newVideoDownloader(
-			cd.config,
-			models.ProgressInfo{CurrentItem: 0, TotalItems: 0},
-			cd.client,
-		)
+		downloader := newVideoDownloader(cd.config, cd.client)
 
 		variants, err := downloader.getVariants(video.ID)
 		if err != nil {
@@ -161,11 +159,12 @@ func (cd *channelDownloader) prepareDownloads(videos []models.Video, indices []i
 
 // printResults displays the download results summary.
 func (cd *channelDownloader) printResults(downloadCount int, selectedCount int, failed []string) {
-	fmt.Printf("\nDownload complete! %d/%d videos successful\n",
-		downloadCount-len(failed), selectedCount)
+	successCount := downloadCount - len(failed)
+	fmt.Printf("%s[SUCCESS]%s Download complete! %d/%d videos successful\n",
+		ui.Success, ui.Reset, successCount, selectedCount)
 
 	if len(failed) > 0 {
-		fmt.Println("Failed downloads:")
+		fmt.Printf("%s[ERROR]%s Failed downloads:\n", ui.Error, ui.Reset)
 
 		for _, title := range failed {
 			fmt.Printf("  - %s\n", title)
@@ -173,23 +172,64 @@ func (cd *channelDownloader) printResults(downloadCount int, selectedCount int, 
 	}
 }
 
-// processDownloads performs the actual video downloads and returns failed video titles.
+// processDownloads performs the actual video downloads in parallel and returns failed video titles.
 func (cd *channelDownloader) processDownloads(videos []models.Video, indices []int) []string {
-	var failed []string
+	var (
+		failed           []string
+		failedLock       sync.Mutex
+		wg               sync.WaitGroup
+		maxFilenameWidth int
+		widthMutex       sync.Mutex
+	)
 
-	for i, idx := range indices {
-		video := videos[idx]
-		progress := models.ProgressInfo{
-			CurrentItem: i + 1,
-			TotalItems:  len(indices),
-		}
-
-		downloader := newVideoDownloader(cd.config, progress, cd.client)
-		if err := downloader.downloadVideo(video.ID, false); err != nil {
-			fmt.Printf("\nFailed: %s - %v\n", video.Title, err)
-			failed = append(failed, video.Title)
-		}
+	numVideos := len(indices)
+	fmt.Print("\033[?25l") // Hide cursor
+	for range numVideos {
+		fmt.Println() // Reserve a line for each video
 	}
+
+	// Start parallel downloads
+	// Each video gets a row index representing how many lines up from the cursor
+	for i, idx := range indices {
+		wg.Add(1)
+
+		go func(videoIdx int, rowIndex int) {
+			defer wg.Done()
+
+			video := videos[videoIdx]
+			downloader := newVideoDownloader(cd.config, cd.client)
+
+			// Get variants to calculate filename width
+			variants, err := downloader.getVariants(video.ID)
+			if err == nil && len(variants) > 0 {
+				filename := dir.CreateFilename(video.Title, variants[0].MediaType, video.Episode, cd.config)
+				basename := filepath.Base(filename)
+
+				// Update max width if this filename is longer
+				widthMutex.Lock()
+				if len(basename) > maxFilenameWidth {
+					maxFilenameWidth = len(basename)
+				}
+				currentMaxWidth := maxFilenameWidth
+				widthMutex.Unlock()
+
+				// Download with current max width (will be updated as other downloads discover longer names)
+				if err := downloader.download(video.ID, false, rowIndex, currentMaxWidth); err != nil {
+					failedLock.Lock()
+					failed = append(failed, video.Title)
+					failedLock.Unlock()
+				}
+			} else {
+				// Failed to get variants
+				failedLock.Lock()
+				failed = append(failed, video.Title)
+				failedLock.Unlock()
+			}
+		}(idx, numVideos-i)
+	}
+
+	wg.Wait()
+	fmt.Print("\033[?25h") // Show cursor
 
 	return failed
 }

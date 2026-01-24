@@ -122,16 +122,11 @@ func Download(config models.DownloadConfig) error {
 	tokenMgr := token.NewTokenManager()
 	client := NewClient(tokenMgr)
 
-	videoProgress := models.ProgressInfo{
-		CurrentItem: 1,
-		TotalItems:  1,
-	}
-
 	switch downloadType {
 	case videoType, unknownType:
-		downloader := newVideoDownloader(config, videoProgress, client)
+		downloader := newVideoDownloader(config, client)
 
-		if err = downloader.downloadVideo(id, true); err == nil {
+		if err = downloader.download(id, true, 0, 0); err == nil {
 			return nil
 		} else if downloadType == videoType || errors.Is(err, dir.ErrFailedToCreateFile) {
 			return fmt.Errorf("%w: %w", errFailedToDownloadVideo, err)
@@ -142,7 +137,7 @@ func Download(config models.DownloadConfig) error {
 	case channelType:
 		downloader := newChannelDownloader(config, client)
 
-		if err = downloader.downloadChannel(id); err != nil {
+		if err = downloader.download(id); err != nil {
 			if downloadType == unknownType {
 				return fmt.Errorf("%w", errInvalidID)
 			}

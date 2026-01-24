@@ -41,12 +41,12 @@ const (
 └────────┴─────────┴────────┘
 
 `
-	commonPrompt = `💡 Select videos:
+	commonPrompt = `Select videos:
    • Single: '1' or '3,5,7'
    • Range:  '1-5' or '1-3,7-9'
    • All:    Press Enter
 
-🎯 Selection: `
+Selection: `
 )
 
 func TestSelectVideos(t *testing.T) {

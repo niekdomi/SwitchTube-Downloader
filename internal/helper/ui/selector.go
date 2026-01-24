@@ -42,12 +42,12 @@ func SelectVideos(videos []models.Video, all, useEpisode bool) ([]int, error) {
 		return nil, err
 	}
 
-	fmt.Println("\n💡 Select videos:")
+	fmt.Println("\nSelect videos:")
 	fmt.Println("   • Single: '1' or '3,5,7'")
 	fmt.Println("   • Range:  '1-5' or '1-3,7-9'")
 	fmt.Println("   • All:    Press Enter")
 
-	input := strings.TrimSpace(Input("\n🎯 Selection: "))
+	input := strings.TrimSpace(Input("\nSelection: "))
 	if input == "" {
 		// If input is empty, select all videos
 		indices := make([]int, len(videos))

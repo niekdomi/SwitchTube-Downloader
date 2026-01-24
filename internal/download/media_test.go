@@ -144,7 +144,10 @@ func TestClient_makeJSONRequest(t *testing.T) {
 				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					assert.Equal(t, "Token fake-token", r.Header.Get(headerAuthorization))
 					w.WriteHeader(tt.responseStatus)
-					w.Write([]byte(tt.responseBody))
+
+					if _, err := w.Write([]byte(tt.responseBody)); err != nil {
+						t.Errorf("failed to write response: %v", err)
+					}
 				}),
 			)
 			defer server.Close()

@@ -27,7 +27,7 @@ var (
 )
 
 // SelectVideos displays the video list and handles user selection.
-func SelectVideos(videos []models.Video, all, useEpisode bool) ([]int, error) {
+func SelectVideos(videos []models.Video, all bool, useEpisode bool) ([]int, error) {
 	// If --all flag is used, select all videos
 	if all || len(videos) == 0 {
 		indices := make([]int, len(videos))
@@ -38,6 +38,12 @@ func SelectVideos(videos []models.Video, all, useEpisode bool) ([]int, error) {
 		return indices, nil
 	}
 
+	// Use interactive selection if running in a terminal
+	if IsTerminal() {
+		return interactiveSelect(videos, useEpisode)
+	}
+
+	// Fall back to text-based selection for non-TTY (piped input, etc.)
 	if err := renderVideoTable(videos, useEpisode); err != nil {
 		return nil, err
 	}

@@ -34,9 +34,11 @@ var (
 	// ErrTokenAlreadyExists is returned when attempting to set a token that already exists.
 	ErrTokenAlreadyExists = errors.New("token already exists in keyring")
 
-	errNoToken      = errors.New("no token found in keyring - run 'token set' first")
-	errTokenEmpty   = errors.New("token cannot be empty")
-	errTokenInvalid = errors.New("token authentication failed")
+	errFailedToCloseResponse = errors.New("failed to close response body")
+	errFailedToValidateToken = errors.New("failed to validate token")
+	errNoToken               = errors.New("no token found in keyring - run 'token set' first")
+	errTokenEmpty            = errors.New("token cannot be empty")
+	errTokenInvalid          = errors.New("token authentication failed")
 )
 
 // Manager encapsulates token management logic.
@@ -59,6 +61,7 @@ func (tm *Manager) Delete() error {
 	// Confirm deletion
 	if !ui.Confirm("Are you sure you want to delete the stored token?") {
 		fmt.Printf("%s[CANCELLED]%s Token deletion cancelled\n", ui.Warning, ui.Reset)
+
 		return nil
 	}
 
@@ -261,16 +264,18 @@ func (tm *Manager) validateToken(token string) error {
 	req.Header.Set("Authorization", "Token "+token)
 	req.Header.Set("Accept", "application/json")
 
-	client := &http.Client{
+	client := &http.Client{ //nolint:exhaustruct
 		Timeout: requestTimeoutSeconds * time.Second,
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to validate token: %w", err)
+		return fmt.Errorf("%w: %w", errFailedToValidateToken, err)
 	}
 
-	defer func() { _ = resp.Body.Close() }()
+	if err := resp.Body.Close(); err != nil {
+		return fmt.Errorf("%w: %w", errFailedToCloseResponse, err)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return errTokenInvalid

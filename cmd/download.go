@@ -15,8 +15,7 @@ import (
 // its flags.
 func init() {
 	rootCmd.AddCommand(downloadCmd)
-	downloadCmd.Flags().
-		BoolP("episode", "e", false, "Prefixes the video with episode-number e.g. 01_OR_Mapping.mp4")
+	downloadCmd.Flags().BoolP("episode", "e", false, "Prefixes the video with episode-number e.g. 01_OR_Mapping.mp4")
 	downloadCmd.Flags().BoolP("skip", "s", false, "Skip video if it already exists")
 	downloadCmd.Flags().BoolP("force", "f", false, "Force overwrite if file already exist")
 	downloadCmd.Flags().BoolP("all", "a", false, "Download the whole content of a channel")

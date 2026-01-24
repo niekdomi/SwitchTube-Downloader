@@ -15,10 +15,10 @@ const (
 	minUpdateGap  = 50 * time.Millisecond
 )
 
-var (
-	errFailedToCopyData = errors.New("failed to copy data")
-	displayMutex        sync.Mutex // Prevents concurrent display updates
-)
+//nolint:gochecknoglobals
+var displayMutex sync.Mutex // Prevents concurrent display updates
+
+var errFailedToCopyData = errors.New("failed to copy data")
 
 // progressWriter wraps an io.Writer and tracks progress.
 type progressWriter struct {
@@ -44,7 +44,7 @@ func (pw *progressWriter) Write(p []byte) (int, error) {
 		pw.displayProgress()
 	}
 
-	return n, err
+	return n, fmt.Errorf("%w: %w", errFailedToCopyData, err)
 }
 
 // displayProgress renders the progress bar to stdout.
@@ -56,7 +56,7 @@ func (pw *progressWriter) displayProgress() {
 
 	percentage := 0.0
 	if pw.total > 0 {
-		percentage = (float64(pw.written) / float64(pw.total)) * 100.0
+		percentage = (float64(pw.written) / float64(pw.total)) * percentageBase
 	}
 
 	speed := (float64(pw.written) / elapsed)
@@ -67,27 +67,18 @@ func (pw *progressWriter) displayProgress() {
 	basename := filepath.Base(pw.filename)
 	// Pad filename if maxFilenameWidth is set
 	if pw.maxFilenameWidth > 0 && len(basename) < pw.maxFilenameWidth {
-		basename = basename + strings.Repeat(" ", pw.maxFilenameWidth-len(basename))
+		basename += strings.Repeat(" ", pw.maxFilenameWidth-len(basename))
 	}
 
 	if pw.rowIndex > 0 {
 		// Multi-line mode: save cursor, move up to target row, update, restore cursor
-		fmt.Print("\033[s")                                                   // Save cursor position
-		fmt.Printf("\033[%dA", pw.rowIndex)                                   // Move up rowIndex lines
-		fmt.Printf("\r\033[K%s %s", basename, renderProgressBar(percentage, speed)) // Clear line and print
-		fmt.Print("\033[u")                                                   // Restore cursor position
+		fmt.Print("\033[s")
+		fmt.Printf("\033[%dA", pw.rowIndex)
+		fmt.Printf("\r\033[K%s %s", basename, renderProgressBar(percentage, speed))
+		fmt.Print("\033[u")
 	} else {
 		// Single-line mode: use carriage return
 		fmt.Printf("\r%s %s", basename, renderProgressBar(percentage, speed))
-	}
-}
-
-// finalize completes the progress display.
-func (pw *progressWriter) finalize() {
-	pw.displayProgress()
-	if pw.rowIndex == 0 {
-		// Only print newline in single-line mode
-		fmt.Println()
 	}
 }
 
@@ -117,7 +108,7 @@ func ProgressBarWithRow(src io.Reader, dst io.Writer, total int64, filename stri
 	}
 
 	// Final update
-	pw.finalize()
+	pw.displayProgress()
 
 	return nil
 }

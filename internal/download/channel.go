@@ -77,7 +77,7 @@ func (cd *channelDownloader) download(channelID string) error {
 	}
 
 	cd.config.Output = folderName
-	fmt.Printf("Downloading to folder: %s\n", folderName)
+	fmt.Printf("\r\nDownloading to folder: %s\n\n", folderName)
 	cd.downloadSelectedVideos(videos, selectedIndices)
 
 	return nil
@@ -87,9 +87,9 @@ func (cd *channelDownloader) download(channelID string) error {
 func (cd *channelDownloader) downloadSelectedVideos(videos []models.Video, selectedIndices []int) {
 	var failed []string
 
-	toDownload := cd.prepareDownloads(videos, selectedIndices, &failed)
+	toDownload, maxWidth := cd.prepareDownloads(videos, selectedIndices, &failed)
 	if len(toDownload) > 0 {
-		failed = append(failed, cd.processDownloads(videos, toDownload)...)
+		failed = append(failed, cd.processDownloads(videos, toDownload, maxWidth)...)
 	}
 
 	cd.printResults(len(toDownload), len(selectedIndices), failed)
@@ -126,8 +126,11 @@ func (cd *channelDownloader) getVideos(channelID string) ([]models.Video, error)
 }
 
 // prepareDownloads checks which videos need to be downloaded and validates their availability.
-func (cd *channelDownloader) prepareDownloads(videos []models.Video, indices []int, failed *[]string) []int {
-	var toDownload []int
+func (cd *channelDownloader) prepareDownloads(videos []models.Video, indices []int, failed *[]string) ([]int, int) {
+	var (
+		toDownload []int
+		maxWidth   int
+	)
 
 	for _, idx := range indices {
 		video := videos[idx]
@@ -151,17 +154,21 @@ func (cd *channelDownloader) prepareDownloads(videos []models.Video, indices []i
 		filename := dir.CreateFilename(video.Title, variants[0].MediaType, video.Episode, cd.config)
 		if !dir.OverwriteVideoIfExists(filename, cd.config) {
 			toDownload = append(toDownload, idx)
+
+			basename := filepath.Base(filename)
+			if len(basename) > maxWidth {
+				maxWidth = len(basename)
+			}
 		}
 	}
 
-	return toDownload
+	return toDownload, maxWidth
 }
 
 // printResults displays the download results summary.
 func (cd *channelDownloader) printResults(downloadCount int, selectedCount int, failed []string) {
 	successCount := downloadCount - len(failed)
-	fmt.Printf("%s[SUCCESS]%s Download complete! %d/%d videos successful\n",
-		ui.Success, ui.Reset, successCount, selectedCount)
+	fmt.Printf("\n%s[SUCCESS]%s Download complete! %d/%d videos successful\n", ui.Success, ui.Reset, successCount, selectedCount)
 
 	if len(failed) > 0 {
 		fmt.Printf("%s[ERROR]%s Failed downloads:\n", ui.Error, ui.Reset)
@@ -173,17 +180,19 @@ func (cd *channelDownloader) printResults(downloadCount int, selectedCount int, 
 }
 
 // processDownloads performs the actual video downloads in parallel and returns failed video titles.
-func (cd *channelDownloader) processDownloads(videos []models.Video, indices []int) []string {
+func (cd *channelDownloader) processDownloads(videos []models.Video, indices []int, maxWidth int) []string {
 	var (
 		failed           []string
 		failedLock       sync.Mutex
 		wg               sync.WaitGroup
-		maxFilenameWidth int
+		maxFilenameWidth = maxWidth
 		widthMutex       sync.Mutex
 	)
 
 	numVideos := len(indices)
+
 	fmt.Print("\033[?25l") // Hide cursor
+
 	for range numVideos {
 		fmt.Println() // Reserve a line for each video
 	}
@@ -207,22 +216,29 @@ func (cd *channelDownloader) processDownloads(videos []models.Video, indices []i
 
 				// Update max width if this filename is longer
 				widthMutex.Lock()
+
 				if len(basename) > maxFilenameWidth {
 					maxFilenameWidth = len(basename)
 				}
+
 				currentMaxWidth := maxFilenameWidth
+
 				widthMutex.Unlock()
 
 				// Download with current max width (will be updated as other downloads discover longer names)
 				if err := downloader.download(video.ID, false, rowIndex, currentMaxWidth); err != nil {
 					failedLock.Lock()
+
 					failed = append(failed, video.Title)
+
 					failedLock.Unlock()
 				}
 			} else {
 				// Failed to get variants
 				failedLock.Lock()
+
 				failed = append(failed, video.Title)
+
 				failedLock.Unlock()
 			}
 		}(idx, numVideos-i)

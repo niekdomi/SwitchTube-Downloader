@@ -47,39 +47,6 @@ func newVideoDownloader(
 	}
 }
 
-// downloadProcess handles the actual file download.
-func (vd *videoDownloader) downloadProcess(endpoint string, file *os.File, rowIndex int, maxFilenameWidth int) error {
-	fullURL, err := url.JoinPath(baseURL, endpoint)
-	if err != nil {
-		return fmt.Errorf("%w: %w", errFailedToConstructURL, err)
-	}
-
-	resp, err := vd.client.makeRequest(fullURL)
-	if err != nil {
-		return fmt.Errorf("%w: %w", errFailedToFetchVideoStream, err)
-	}
-
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			fmt.Printf("Warning: failed to close response body: %v\n", err)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%w: status %d: %s",
-			errHTTPNotOK,
-			resp.StatusCode,
-			http.StatusText(resp.StatusCode))
-	}
-
-	err = ui.ProgressBarWithRow(resp.Body, file, resp.ContentLength, file.Name(), rowIndex, maxFilenameWidth)
-	if err != nil {
-		return fmt.Errorf("%w: %w", errFailedToCopyVideoData, err)
-	}
-
-	return nil
-}
-
 // download downloads a video with optional progress bar positioning for parallel downloads.
 // rowIndex and maxFilenameWidth are used for multi-line progress display (0 = single-line mode).
 func (vd *videoDownloader) download(videoID string, checkExists bool, rowIndex int, maxFilenameWidth int) error {
@@ -111,6 +78,39 @@ func (vd *videoDownloader) download(videoID string, checkExists bool, rowIndex i
 	err = vd.downloadProcess(variants[0].Path, file, rowIndex, maxFilenameWidth)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToDownloadVideo, err)
+	}
+
+	return nil
+}
+
+// downloadProcess handles the actual file download.
+func (vd *videoDownloader) downloadProcess(endpoint string, file *os.File, rowIndex int, maxFilenameWidth int) error {
+	fullURL, err := url.JoinPath(baseURL, endpoint)
+	if err != nil {
+		return fmt.Errorf("%w: %w", errFailedToConstructURL, err)
+	}
+
+	resp, err := vd.client.makeRequest(fullURL)
+	if err != nil {
+		return fmt.Errorf("%w: %w", errFailedToFetchVideoStream, err)
+	}
+
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("Warning: failed to close response body: %v\n", err)
+		}
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%w: status %d: %s",
+			errHTTPNotOK,
+			resp.StatusCode,
+			http.StatusText(resp.StatusCode))
+	}
+
+	err = ui.ProgressBarWithRow(resp.Body, file, resp.ContentLength, file.Name(), rowIndex, maxFilenameWidth)
+	if err != nil {
+		return fmt.Errorf("%w: %w", errFailedToCopyVideoData, err)
 	}
 
 	return nil

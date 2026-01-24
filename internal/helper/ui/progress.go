@@ -5,11 +5,12 @@ import (
 	"strings"
 )
 
-// Progress bar symbols
+// Progress bar symbols.
 const (
 	ProgressFilled   = "━"
 	ProgressEmpty    = "─"
 	ProgressBarWidth = 30
+	percentageBase   = 100.0
 )
 
 // formatSpeed formats download speed in human-readable format.
@@ -33,10 +34,11 @@ func formatSpeed(bytePerSec float64) (float64, string) {
 }
 
 // renderProgressBar renders a progress bar with percentage and speed.
-func renderProgressBar(percentage, bytePerSec float64) string {
-	filled := int((percentage / 100.0) * float64(ProgressBarWidth))
+func renderProgressBar(percentage float64, bytePerSec float64) string {
+	filled := int((percentage / percentageBase) * float64(ProgressBarWidth))
 
 	var bar strings.Builder
+
 	for i := range ProgressBarWidth {
 		if i < filled {
 			bar.WriteString(Green + ProgressFilled)

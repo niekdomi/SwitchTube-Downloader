@@ -3,38 +3,31 @@ version: "2"
 linters:
   default: all
   disable:
-    - arangolint
     - depguard
-    - dupword
     - forbidigo
-    - ginkgolinter
-    - gochecknoglobals
-    - gochecknoinits
-    - godox
-    - goheader
-    - goprintffuncname
-    - grouper
     - lll
-    - misspell
     - noinlineerr
-    - sloglint
-    - spancheck
-    - sqlclosecheck
-    - tagalign
-    - unqueryvet
     - varnamelen
     - wsl
-    - zerologlint
 
   exclusions:
     rules:
-      - path: _test\.go
+      - path: cmd/
+        linters:
+          - gochecknoglobals
+          - gochecknoinits
+      - path: internal/helper/ui/colors.go
+        linters:
+          - godoclint
+      - path: internal/helper/ui/input.go
         linters:
           - cyclop
+          - mnd
+      - path: _test\.go
+        linters:
           - errcheck
           - exhaustruct
           - funlen
-          - gocognit
           - gosec
           - maintidx
           - paralleltest

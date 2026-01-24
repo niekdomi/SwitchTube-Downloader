@@ -23,11 +23,11 @@ func init() {
 }
 
 var downloadCmd = &cobra.Command{
-	Use:   "download <id|url>",
+	Use:   "download <id|url> [id|url]...",
 	Short: "Download a video or channel",
 	Long: "Download a video or channel. Automatically detects if input is a video or channel.\n" +
 		"You can also pass the whole URL instead of the ID for convenience.",
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		episode, err := cmd.Flags().GetBool("episode")
 		if err != nil {
@@ -64,20 +64,20 @@ var downloadCmd = &cobra.Command{
 			return
 		}
 
-		config := models.DownloadConfig{
-			Media:      args[0],
-			UseEpisode: episode,
-			Skip:       skip,
-			Force:      force,
-			All:        all,
-			Output:     strings.TrimSpace(output),
-		}
+		for _, arg := range args {
+			config := models.DownloadConfig{
+				Media:      arg,
+				UseEpisode: episode,
+				Skip:       skip,
+				Force:      force,
+				All:        all,
+				Output:     strings.TrimSpace(output),
+			}
 
-		err = download.Download(config)
-		if err != nil {
-			fmt.Printf("%s[ERROR]%s %v\n", ui.Error, ui.Reset, err)
-
-			return
+			err = download.Download(config)
+			if err != nil {
+				fmt.Printf("%s[ERROR]%s %v\n", ui.Error, ui.Reset, err)
+			}
 		}
 	},
 }

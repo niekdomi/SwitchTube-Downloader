@@ -44,7 +44,11 @@ func (pw *progressWriter) Write(p []byte) (int, error) {
 		pw.displayProgress()
 	}
 
-	return n, fmt.Errorf("%w: %w", errFailedToCopyData, err)
+	if err != nil {
+		return n, fmt.Errorf("%w: %w", errFailedToCopyData, err)
+	}
+
+	return n, nil
 }
 
 // displayProgress renders the progress bar to stdout.
@@ -109,6 +113,10 @@ func ProgressBarWithRow(src io.Reader, dst io.Writer, total int64, filename stri
 
 	// Final update
 	pw.displayProgress()
+
+	if rowIndex == 0 {
+		fmt.Println()
+	}
 
 	return nil
 }

@@ -172,9 +172,12 @@ use the highest quality available anyway.
 
 > Can we download multiple videos at once?
 
-Currently, the downloader doesn't support batch downloads (e.g.
-`./switchtube-downloader download dh5sX1Fj3I qu0fK6Sw1V dh0sX6Fj1I`). If
-there is enough interest, I might implement this feature in the future.
+Yes, you can! Just provide the IDs or URLs of the videos/channels you want to
+download as arguments:
+
+```bash
+./switchtube-downloader download dh5sX1Fj3I qu0fK6Sw1V dh0sX6Fj1I
+```
 
 > Is it possible to configure default settings such as output directory?
 

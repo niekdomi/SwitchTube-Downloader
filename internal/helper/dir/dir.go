@@ -15,10 +15,6 @@ import (
 const (
 	// File and directory permissions.
 	dirPermissions = 0o755
-
-	// Minimum number of parts in a media type string
-	// (e.g., "video/mp4" has 2 parts).
-	minMediaTypeParts = 2
 )
 
 var (
@@ -31,11 +27,9 @@ var (
 // CreateFilename creates a sanitized filename from video title and media type.
 func CreateFilename(title string, mediaType string, episodeNr string, config models.DownloadConfig) string {
 	// Extract extension from media type (e.g., "video/mp4" -> "mp4")
-	parts := strings.Split(mediaType, "/")
-
-	extension := "mp4" // default fallback
-	if len(parts) == minMediaTypeParts {
-		extension = parts[1]
+	_, extension, found := strings.Cut(mediaType, "/")
+	if !found {
+		extension = "mp4" // default fallback
 	}
 
 	sanitizedTitle := sanitizeFilename(title)
@@ -102,24 +96,21 @@ func CreateChannelFolder(channelName string, config models.DownloadConfig) (stri
 
 // sanitizeFilename removes or replaces invalid characters in filenames.
 func sanitizeFilename(filename string) string {
-	replacements := map[string]string{
-		"/":  "-",
-		"\\": "-",
-		":":  "-",
-		"*":  "",
-		"?":  "",
-		"\"": "",
-		"<":  "",
-		">":  "",
-		"|":  "-",
-	}
+	replacer := strings.NewReplacer(
+		"/", "-",
+		"\\", "-",
+		":", "-",
+		"*", "",
+		"?", "",
+		"\"", "",
+		"<", "",
+		">", "",
+		"|", "-",
+	)
 
-	sanitized := filename
-	for invalid, replacement := range replacements {
-		sanitized = strings.ReplaceAll(sanitized, invalid, replacement)
-	}
-
+	sanitized := replacer.Replace(filename)
 	sanitized = strings.TrimSpace(sanitized)
+
 	for strings.Contains(sanitized, "--") {
 		sanitized = strings.ReplaceAll(sanitized, "--", "-")
 	}

@@ -21,7 +21,7 @@ func Input(prompt string) string {
 func Confirm(format string, args ...any) bool {
 	prompt := fmt.Sprintf(format, args...)
 	response := Input(prompt + " (y/N): ")
-	response = strings.ToLower(strings.TrimSpace(response))
+	response = strings.ToLower(response)
 
 	return response == "y" || response == "yes"
 }

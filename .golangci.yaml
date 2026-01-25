@@ -28,7 +28,7 @@ linters:
           - errcheck
           - exhaustruct
           - gosec
-      - path: _test\.go|testing_helpers\.go
+      - path: _test\.go
         linters:
           - errcheck
           - exhaustruct

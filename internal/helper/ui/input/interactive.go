@@ -35,6 +35,35 @@ func newSelectionState(videos []models.Video, useEpisode bool) *selectionState {
 	}
 }
 
+// SelectVideos shows an interactive checkbox-based selector. All items are selected by default.
+func SelectVideos(videos []models.Video, all bool, useEpisode bool) ([]int, error) {
+	// If --all flag is used, select all videos
+	if all || len(videos) == 0 {
+		indices := make([]int, len(videos))
+		for i := range indices {
+			indices[i] = i
+		}
+
+		return indices, nil
+	}
+
+	termState, err := initializeTerminal()
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		_ = termState.Restore()
+
+		fmt.Print(colors.ShowCursor)
+	}()
+
+	state := newSelectionState(videos, useEpisode)
+	state.render(false)
+
+	return runEventLoop(state)
+}
+
 // getSelectedIndices returns the indices of all selected items.
 func (s *selectionState) getSelectedIndices() []int {
 	indices := make([]int, 0, len(s.selected))
@@ -78,26 +107,6 @@ func initializeTerminal() (*terminal.State, error) {
 	fmt.Print(colors.HideCursor)
 
 	return termState, nil
-}
-
-// interactiveSelect shows an interactive checkbox-based selector.
-// All items are selected by default.
-func interactiveSelect(videos []models.Video, useEpisode bool) ([]int, error) {
-	termState, err := initializeTerminal()
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		_ = termState.Restore()
-
-		fmt.Print(colors.ShowCursor)
-	}()
-
-	state := newSelectionState(videos, useEpisode)
-	state.render(false)
-
-	return runEventLoop(state)
 }
 
 // moveDown moves the cursor down by one position.

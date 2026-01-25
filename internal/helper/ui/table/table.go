@@ -1,4 +1,4 @@
-// Package table provides functions to display information in markdownmarkdown .
+// Package table provides functions to display information in markdown tables.
 package table
 
 import (
@@ -13,7 +13,7 @@ import (
 
 const createAccessTokenURL = "https://tube.switch.ch/access_tokens"
 
-// DisplayInstructions shows token creation instructions in a rounded table.
+// DisplayInstructions shows token creation instructions in a table.
 func DisplayInstructions() {
 	data := [][]string{
 		{colors.Bold + "1." + colors.Reset + " Visit: " + createAccessTokenURL},
@@ -22,13 +22,13 @@ func DisplayInstructions() {
 		{colors.Bold + "4." + colors.Reset + " Paste it below"},
 	}
 
-	table := createRoundedTable()
+	table := createTable()
 	table.Header("Token Creation Instructions")
 	table.Bulk(data)
 	table.Render()
 }
 
-// DisplayTokenInfo shows token information in a rounded table.
+// DisplayTokenInfo shows token information in a table.
 func DisplayTokenInfo(service string, username string, status string, maskedToken string, tokenLength int) {
 	data := [][]string{
 		{"Service", service},
@@ -38,14 +38,14 @@ func DisplayTokenInfo(service string, username string, status string, maskedToke
 		{"Status", status},
 	}
 
-	table := createRoundedTable()
+	table := createTable()
 	table.Header("Token Information")
 	table.Bulk(data)
 	table.Render()
 }
 
-// createRoundedTable creates a table with rounded corners and preserved casing.
-func createRoundedTable() *tablewriter.Table {
+// createTable creates a markdown table.
+func createTable() *tablewriter.Table {
 	cfg := tablewriter.Config{
 		Header: tw.CellConfig{
 			Formatting: tw.CellFormatting{AutoFormat: tw.Off},

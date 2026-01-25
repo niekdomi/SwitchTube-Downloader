@@ -1,10 +1,12 @@
-package ui
+package input
 
 import (
 	"errors"
 	"fmt"
 	"os"
 
+	"switchtube-downloader/internal/helper/ui/colors"
+	"switchtube-downloader/internal/helper/ui/terminal"
 	"switchtube-downloader/internal/models"
 )
 
@@ -46,16 +48,14 @@ func (s *SelectionState) getSelectedIndices() []int {
 }
 
 // handleEvent processes a keyboard event and returns whether to render and exit.
-func (s *SelectionState) handleEvent(event InputEvent) (bool, bool) {
+func (s *SelectionState) handleEvent(event Event) (bool, bool) {
 	switch event.Key { //nolint:exhaustive
 	case KeyArrowUp:
-		return s.moveUp(), false
+		s.moveUp()
 	case KeyArrowDown:
-		return s.moveDown(), false
+		s.moveDown()
 	case KeySpace:
 		s.toggleCurrent()
-
-		return true, false
 	case KeyEnter:
 		return false, true
 	case KeyCtrlC:
@@ -63,19 +63,19 @@ func (s *SelectionState) handleEvent(event InputEvent) (bool, bool) {
 		os.Exit(0)
 
 		return false, false
-	default:
-		return false, false
 	}
+
+	return true, false
 }
 
 // initializeTerminal sets up the terminal for interactive input.
-func initializeTerminal() (*TerminalState, error) {
-	termState, err := EnableRawMode()
+func initializeTerminal() (*terminal.State, error) {
+	termState, err := terminal.EnableRawMode()
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errFailedToSetRawMode, err)
+		return nil, fmt.Errorf("%w: %w", terminal.ErrFailedToSetRawMode, err)
 	}
 
-	fmt.Print(HideCursor)
+	fmt.Print(colors.HideCursor)
 
 	return termState, nil
 }
@@ -91,7 +91,7 @@ func interactiveSelect(videos []models.Video, useEpisode bool) ([]int, error) {
 	defer func() {
 		_ = termState.Restore()
 
-		fmt.Print(ShowCursor)
+		fmt.Print(colors.ShowCursor)
 	}()
 
 	state := newSelectionState(videos, useEpisode)
@@ -101,25 +101,13 @@ func interactiveSelect(videos []models.Video, useEpisode bool) ([]int, error) {
 }
 
 // moveDown moves the cursor down by one position.
-func (s *SelectionState) moveDown() bool {
-	if s.currentIndex < len(s.videos)-1 {
-		s.currentIndex++
-
-		return true
-	}
-
-	return false
+func (s *SelectionState) moveDown() {
+	s.currentIndex = (s.currentIndex + 1) % len(s.videos)
 }
 
 // moveUp moves the cursor up by one position.
-func (s *SelectionState) moveUp() bool {
-	if s.currentIndex > 0 {
-		s.currentIndex--
-
-		return true
-	}
-
-	return false
+func (s *SelectionState) moveUp() {
+	s.currentIndex = (s.currentIndex - 1 + len(s.videos)) % len(s.videos)
 }
 
 // render displays the current selection state.
@@ -128,29 +116,29 @@ func (s *SelectionState) render(isUpdate bool) {
 		fmt.Printf("\033[%dA", len(s.videos)+1) // Move cursor up to the start of the list
 	}
 
-	fmt.Print("\r" + ClearLine)
-	fmt.Printf("%s%sChoose videos to download:%s\n", Bold, Cyan, Reset)
+	fmt.Print("\r" + colors.ClearLine)
+	fmt.Printf("%s%sChoose videos to download:%s\n", colors.Bold, colors.Cyan, colors.Reset)
 
 	for i, video := range s.videos {
 		renderVideoItem(video, s.selected[i], i == s.currentIndex, s.useEpisode)
 	}
 
-	fmt.Print("\r" + ClearLine)
-	fmt.Printf("%sNavigation: ↑↓/j/k  Toggle: Space  Confirm: Enter%s", Dim, Reset)
+	fmt.Print("\r" + colors.ClearLine)
+	fmt.Printf("%sNavigation: ↑↓/j/k  Toggle: Space  Confirm: Enter%s", colors.Dim, colors.Reset)
 
 	_ = os.Stdout.Sync()
 }
 
 // renderVideoItem displays a single video item.
 func renderVideoItem(video models.Video, isSelected bool, isCurrent bool, useEpisode bool) {
-	fmt.Print("\r" + ClearLine)
+	fmt.Print("\r" + colors.ClearLine)
 
-	checkbox := CheckboxUnchecked
+	checkbox := colors.CheckboxUnchecked
 	checkboxColor := ""
 
 	if isSelected {
-		checkbox = CheckboxChecked
-		checkboxColor = Green
+		checkbox = colors.CheckboxChecked
+		checkboxColor = colors.Green
 	}
 
 	videoText := video.Title
@@ -159,9 +147,9 @@ func renderVideoItem(video models.Video, isSelected bool, isCurrent bool, useEpi
 	}
 
 	if isCurrent {
-		fmt.Printf("  %s%s%s %s%s%s\n", checkboxColor, checkbox, Reset, Bold, videoText, Reset)
+		fmt.Printf("  %s%s%s %s%s%s\n", checkboxColor, checkbox, colors.Reset, colors.Bold, videoText, colors.Reset)
 	} else {
-		fmt.Printf("  %s%s%s %s%s%s\n", checkboxColor, checkbox, Reset, Dim, videoText, Reset)
+		fmt.Printf("  %s%s%s %s%s%s\n", checkboxColor, checkbox, colors.Reset, colors.Dim, videoText, colors.Reset)
 	}
 }
 

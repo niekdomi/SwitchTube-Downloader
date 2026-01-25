@@ -1,4 +1,4 @@
-package ui
+package progress
 
 import (
 	"errors"
@@ -86,15 +86,10 @@ func (pw *progressWriter) displayProgress() {
 	}
 }
 
-// ProgressBar sets up a progress bar for downloading and copies data from src to dst.
-func ProgressBar(src io.Reader, dst io.Writer, total int64, filename string) error {
-	return ProgressBarWithRow(src, dst, total, filename, 0, 0)
-}
-
-// ProgressBarWithRow sets up a progress bar with a specific row index for multi-line display.
+// BarWithRow sets up a progress bar with a specific row index for multi-line display.
 // rowIndex 0 means single-line mode (uses \r), rowIndex > 0 uses cursor positioning.
 // maxFilenameWidth is used for padding filenames to align progress bars (0 = no padding).
-func ProgressBarWithRow(src io.Reader, dst io.Writer, total int64, filename string, rowIndex int, maxFilenameWidth int) error {
+func BarWithRow(src io.Reader, dst io.Writer, total int64, filename string, rowIndex int, maxFilenameWidth int) error {
 	pw := &progressWriter{
 		writer:           dst,
 		total:            total,

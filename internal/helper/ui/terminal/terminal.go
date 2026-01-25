@@ -1,4 +1,5 @@
-package ui
+// Package terminal provides utilities for managing terminal modes and states.
+package terminal
 
 import (
 	"errors"
@@ -9,35 +10,37 @@ import (
 )
 
 var (
-	errFailedToSetRawMode           = errors.New("failed to set raw mode")
+	// ErrFailedToSetRawMode is returned when the terminal cannot be set to raw mode.
+	ErrFailedToSetRawMode = errors.New("failed to set raw mode")
+
 	errFailedToRestoreTerminalState = errors.New("failed to restore terminal state")
 )
 
-// TerminalState stores the original terminal state for restoration.
-type TerminalState struct {
+// State stores the original terminal state for restoration.
+type State struct {
 	fd    int
 	state *term.State
 }
 
 // EnableRawMode switches the terminal to raw mode for interactive input.
 // Returns the original state that should be restored later.
-func EnableRawMode() (*TerminalState, error) {
+func EnableRawMode() (*State, error) {
 	fd := int(os.Stdin.Fd())
 
 	// Save original state
 	oldState, err := term.MakeRaw(fd)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errFailedToSetRawMode, err)
+		return nil, fmt.Errorf("%w: %w", ErrFailedToSetRawMode, err)
 	}
 
-	return &TerminalState{
+	return &State{
 		fd:    fd,
 		state: oldState,
 	}, nil
 }
 
 // Restore returns the terminal to its original state.
-func (ts *TerminalState) Restore() error {
+func (ts *State) Restore() error {
 	if ts.state == nil {
 		return nil
 	}

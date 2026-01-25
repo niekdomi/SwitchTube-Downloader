@@ -1,4 +1,4 @@
-package ui
+package input
 
 import (
 	"errors"
@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"switchtube-downloader/internal/helper/ui/terminal"
 	"switchtube-downloader/internal/models"
 
 	"github.com/olekukonko/tablewriter"
@@ -39,7 +40,7 @@ func SelectVideos(videos []models.Video, all bool, useEpisode bool) ([]int, erro
 	}
 
 	// Use interactive selection if running in a terminal
-	if IsTerminal() {
+	if terminal.IsTerminal() {
 		return interactiveSelect(videos, useEpisode)
 	}
 

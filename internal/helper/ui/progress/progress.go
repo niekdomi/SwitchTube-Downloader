@@ -1,8 +1,11 @@
-package ui
+// Package progress provides utilities for rendering progress bars in the terminal.
+package progress
 
 import (
 	"fmt"
 	"strings"
+
+	"switchtube-downloader/internal/helper/ui/colors"
 )
 
 // Progress bar symbols.
@@ -41,16 +44,16 @@ func renderProgressBar(percentage float64, bytePerSec float64) string {
 
 	for i := range ProgressBarWidth {
 		if i < filled {
-			bar.WriteString(Green + ProgressFilled)
+			bar.WriteString(colors.Green + ProgressFilled)
 		} else {
-			bar.WriteString(Dim + ProgressEmpty)
+			bar.WriteString(colors.Dim + ProgressEmpty)
 		}
 	}
 
-	bar.WriteString(Reset)
+	bar.WriteString(colors.Reset)
 
 	displaySpeed, unit := formatSpeed(bytePerSec)
-	fmt.Fprintf(&bar, " %5.1f%% %s%6.2f %s%s", percentage, Dim, displaySpeed, unit, Reset)
+	fmt.Fprintf(&bar, " %5.1f%% %s%6.2f %s%s", percentage, colors.Dim, displaySpeed, unit, colors.Reset)
 
 	return bar.String()
 }

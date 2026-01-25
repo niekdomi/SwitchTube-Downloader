@@ -1,4 +1,5 @@
-package ui
+// Package colors provides ANSI color codes and modifiers for terminal output.
+package colors
 
 // ANSI color codes and modifiers.
 const (

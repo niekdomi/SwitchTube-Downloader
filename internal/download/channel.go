@@ -8,7 +8,8 @@ import (
 	"sync"
 
 	"switchtube-downloader/internal/helper/dir"
-	"switchtube-downloader/internal/helper/ui"
+	"switchtube-downloader/internal/helper/ui/colors"
+	"switchtube-downloader/internal/helper/ui/input"
 	"switchtube-downloader/internal/models"
 )
 
@@ -60,7 +61,7 @@ func (cd *channelDownloader) download(channelID string) error {
 
 	fmt.Printf("Found %d videos in channel: %s\n", len(videos), channelInfo.Name)
 
-	selectedIndices, err := ui.SelectVideos(videos, cd.config.All, cd.config.UseEpisode)
+	selectedIndices, err := input.SelectVideos(videos, cd.config.All, cd.config.UseEpisode)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToSelectVideos, err)
 	}
@@ -93,6 +94,66 @@ func (cd *channelDownloader) downloadSelectedVideos(videos []models.Video, selec
 	}
 
 	cd.printResults(len(toDownload), len(selectedIndices), failed)
+}
+
+// downloadVideosParallel downloads multiple videos concurrently.
+func (cd *channelDownloader) downloadVideosParallel(videos []models.Video, indices []int, maxWidth int, failedLock *sync.Mutex) []string {
+	var (
+		failed           []string
+		wg               sync.WaitGroup
+		maxFilenameWidth = maxWidth
+		widthMutex       sync.Mutex
+	)
+
+	numVideos := len(indices)
+
+	for i, idx := range indices {
+		wg.Add(1)
+
+		go func(videoIdx int, rowIndex int) {
+			defer wg.Done()
+
+			video := videos[videoIdx]
+			downloader := newVideoDownloader(cd.config, cd.client)
+
+			// Get variants to calculate filename width
+			variants, err := downloader.getVariants(video.ID)
+			if err != nil || len(variants) == 0 {
+				failedLock.Lock()
+
+				failed = append(failed, video.Title)
+
+				failedLock.Unlock()
+
+				return
+			}
+
+			filename := dir.CreateFilename(video.Title, variants[0].MediaType, video.Episode, cd.config)
+			basename := filepath.Base(filename)
+
+			widthMutex.Lock()
+
+			if len(basename) > maxFilenameWidth {
+				maxFilenameWidth = len(basename)
+			}
+
+			currentMaxWidth := maxFilenameWidth
+
+			widthMutex.Unlock()
+
+			if err := downloader.download(video.ID, false, rowIndex, currentMaxWidth); err != nil {
+				failedLock.Lock()
+
+				failed = append(failed, video.Title)
+
+				failedLock.Unlock()
+			}
+		}(idx, numVideos-i)
+	}
+
+	wg.Wait()
+
+	return failed
 }
 
 // getMetadata retrieves channel metadata from the API.
@@ -168,10 +229,10 @@ func (cd *channelDownloader) prepareDownloads(videos []models.Video, indices []i
 // printResults displays the download results summary.
 func (cd *channelDownloader) printResults(downloadCount int, selectedCount int, failed []string) {
 	successCount := downloadCount - len(failed)
-	fmt.Printf("\n%s[SUCCESS]%s Download complete! %d/%d videos successful\n", ui.Success, ui.Reset, successCount, selectedCount)
+	fmt.Printf("\n%s[SUCCESS]%s Download complete! %d/%d videos successful\n", colors.Success, colors.Reset, successCount, selectedCount)
 
 	if len(failed) > 0 {
-		fmt.Printf("%s[ERROR]%s Failed downloads:\n", ui.Error, ui.Reset)
+		fmt.Printf("%s[ERROR]%s Failed downloads:\n", colors.Error, colors.Reset)
 
 		for _, title := range failed {
 			fmt.Printf("  - %s\n", title)
@@ -182,11 +243,8 @@ func (cd *channelDownloader) printResults(downloadCount int, selectedCount int, 
 // processDownloads performs the actual video downloads in parallel and returns failed video titles.
 func (cd *channelDownloader) processDownloads(videos []models.Video, indices []int, maxWidth int) []string {
 	var (
-		failed           []string
-		failedLock       sync.Mutex
-		wg               sync.WaitGroup
-		maxFilenameWidth = maxWidth
-		widthMutex       sync.Mutex
+		failed     []string
+		failedLock sync.Mutex
 	)
 
 	numVideos := len(indices)
@@ -197,54 +255,8 @@ func (cd *channelDownloader) processDownloads(videos []models.Video, indices []i
 		fmt.Println() // Reserve a line for each video
 	}
 
-	// Start parallel downloads
-	// Each video gets a row index representing how many lines up from the cursor
-	for i, idx := range indices {
-		wg.Add(1)
+	failed = cd.downloadVideosParallel(videos, indices, maxWidth, &failedLock)
 
-		go func(videoIdx int, rowIndex int) {
-			defer wg.Done()
-
-			video := videos[videoIdx]
-			downloader := newVideoDownloader(cd.config, cd.client)
-
-			// Get variants to calculate filename width
-			variants, err := downloader.getVariants(video.ID)
-			if err == nil && len(variants) > 0 {
-				filename := dir.CreateFilename(video.Title, variants[0].MediaType, video.Episode, cd.config)
-				basename := filepath.Base(filename)
-
-				// Update max width if this filename is longer
-				widthMutex.Lock()
-
-				if len(basename) > maxFilenameWidth {
-					maxFilenameWidth = len(basename)
-				}
-
-				currentMaxWidth := maxFilenameWidth
-
-				widthMutex.Unlock()
-
-				// Download with current max width (will be updated as other downloads discover longer names)
-				if err := downloader.download(video.ID, false, rowIndex, currentMaxWidth); err != nil {
-					failedLock.Lock()
-
-					failed = append(failed, video.Title)
-
-					failedLock.Unlock()
-				}
-			} else {
-				// Failed to get variants
-				failedLock.Lock()
-
-				failed = append(failed, video.Title)
-
-				failedLock.Unlock()
-			}
-		}(idx, numVideos-i)
-	}
-
-	wg.Wait()
 	fmt.Print("\033[?25h") // Show cursor
 
 	return failed

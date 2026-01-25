@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"switchtube-downloader/internal/helper/dir"
-	"switchtube-downloader/internal/helper/ui"
+	"switchtube-downloader/internal/helper/ui/progress"
 	"switchtube-downloader/internal/models"
 )
 
@@ -108,7 +108,7 @@ func (vd *videoDownloader) downloadProcess(endpoint string, file *os.File, rowIn
 			http.StatusText(resp.StatusCode))
 	}
 
-	err = ui.ProgressBarWithRow(resp.Body, file, resp.ContentLength, file.Name(), rowIndex, maxFilenameWidth)
+	err = progress.BarWithRow(resp.Body, file, resp.ContentLength, file.Name(), rowIndex, maxFilenameWidth)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToCopyVideoData, err)
 	}

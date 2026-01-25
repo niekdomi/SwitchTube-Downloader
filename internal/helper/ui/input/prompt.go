@@ -1,5 +1,4 @@
-// Package ui provides user interface functions for input and confirmation.
-package ui
+package input
 
 import (
 	"bufio"

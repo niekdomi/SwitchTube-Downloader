@@ -16,14 +16,19 @@ linters:
         linters:
           - gochecknoglobals
           - gochecknoinits
-      - path: internal/helper/ui/colors.go
+      - path: internal/helper/ui/colors/colors.go
         linters:
           - godoclint
-      - path: internal/helper/ui/input.go
+      - path: internal/helper/ui/input/input.go
         linters:
           - cyclop
           - mnd
-      - path: _test\.go
+      - path: internal/helper/ui/table/table.go
+        linters:
+          - errcheck
+          - exhaustruct
+          - gosec
+      - path: _test\.go|testing_helpers\.go
         linters:
           - errcheck
           - exhaustruct

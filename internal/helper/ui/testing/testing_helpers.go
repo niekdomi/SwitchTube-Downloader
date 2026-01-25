@@ -1,4 +1,5 @@
-package ui
+// Package testing provides utilities for setting up test environments
+package testing
 
 import (
 	"os"
@@ -30,13 +31,13 @@ func SetupTestIO(t *testing.T, input string) (func(), func() string) {
 	os.Stdout = w
 
 	restore := func() {
-		_ = w.Close()
+		w.Close()
 
 		os.Stdin = oldStdin
 		os.Stdout = oldStdout
 
-		_ = tmpFile.Close()
-		_ = os.Remove(tmpFile.Name())
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
 	}
 
 	readOutput := func() string {

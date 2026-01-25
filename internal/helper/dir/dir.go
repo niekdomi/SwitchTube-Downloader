@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"switchtube-downloader/internal/helper/ui"
+	"switchtube-downloader/internal/helper/ui/input"
 	"switchtube-downloader/internal/models"
 )
 
@@ -61,7 +61,7 @@ func CreateFilename(title string, mediaType string, episodeNr string, config mod
 func OverwriteVideoIfExists(filename string, config models.DownloadConfig) bool {
 	if !config.Force {
 		if _, err := os.Stat(filename); err == nil {
-			if config.Skip || !ui.Confirm("File %s already exists. Overwrite?", filename) {
+			if config.Skip || !input.Confirm("File %s already exists. Overwrite?", filename) {
 				return true
 			}
 		}

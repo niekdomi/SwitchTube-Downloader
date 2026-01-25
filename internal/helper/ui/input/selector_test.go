@@ -3,7 +3,7 @@ package input
 import (
 	"testing"
 
-	uitesting "switchtube-downloader/internal/helper/ui/testing"
+	testhelper "switchtube-downloader/internal/helper/ui/testing"
 	"switchtube-downloader/internal/models"
 
 	"github.com/stretchr/testify/assert"
@@ -325,7 +325,7 @@ func TestSelectVideos(t *testing.T) {
 			var err error
 
 			if tt.wantPrompt != "" {
-				restore, readOutput := uitesting.SetupTestIO(t, tt.input)
+				restore, readOutput := testhelper.SetupTestIO(t, tt.input)
 				defer restore()
 
 				result, err = SelectVideos(tt.videos, tt.all, tt.useEpisode)

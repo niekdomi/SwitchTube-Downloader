@@ -12,8 +12,8 @@ import (
 
 var errFailedToReadKey = errors.New("failed to read key")
 
-// SelectionState holds the state of the interactive selection UI.
-type SelectionState struct {
+// selectionState holds the state of the interactive selection UI.
+type selectionState struct {
 	videos       []models.Video
 	selected     []bool
 	currentIndex int
@@ -21,13 +21,13 @@ type SelectionState struct {
 }
 
 // newSelectionState creates a new selection state with all items selected by default.
-func newSelectionState(videos []models.Video, useEpisode bool) *SelectionState {
+func newSelectionState(videos []models.Video, useEpisode bool) *selectionState {
 	selected := make([]bool, len(videos))
 	for i := range selected {
 		selected[i] = true
 	}
 
-	return &SelectionState{
+	return &selectionState{
 		videos:       videos,
 		selected:     selected,
 		currentIndex: 0,
@@ -36,7 +36,7 @@ func newSelectionState(videos []models.Video, useEpisode bool) *SelectionState {
 }
 
 // getSelectedIndices returns the indices of all selected items.
-func (s *SelectionState) getSelectedIndices() []int {
+func (s *selectionState) getSelectedIndices() []int {
 	indices := make([]int, 0, len(s.selected))
 	for i, sel := range s.selected {
 		if sel {
@@ -48,7 +48,7 @@ func (s *SelectionState) getSelectedIndices() []int {
 }
 
 // handleEvent processes a keyboard event and returns whether to render and exit.
-func (s *SelectionState) handleEvent(event Event) (bool, bool) {
+func (s *selectionState) handleEvent(event Event) (bool, bool) {
 	switch event.Key { //nolint:exhaustive
 	case KeyArrowUp:
 		s.moveUp()
@@ -101,17 +101,17 @@ func interactiveSelect(videos []models.Video, useEpisode bool) ([]int, error) {
 }
 
 // moveDown moves the cursor down by one position.
-func (s *SelectionState) moveDown() {
+func (s *selectionState) moveDown() {
 	s.currentIndex = (s.currentIndex + 1) % len(s.videos)
 }
 
 // moveUp moves the cursor up by one position.
-func (s *SelectionState) moveUp() {
+func (s *selectionState) moveUp() {
 	s.currentIndex = (s.currentIndex - 1 + len(s.videos)) % len(s.videos)
 }
 
 // render displays the current selection state.
-func (s *SelectionState) render(isUpdate bool) {
+func (s *selectionState) render(isUpdate bool) {
 	if isUpdate {
 		fmt.Printf("\033[%dA", len(s.videos)+1) // Move cursor up to the start of the list
 	}
@@ -119,8 +119,16 @@ func (s *SelectionState) render(isUpdate bool) {
 	fmt.Print("\r" + colors.ClearLine)
 	fmt.Printf("%s%sChoose videos to download:%s\n", colors.Bold, colors.Cyan, colors.Reset)
 
+	maxEpisodeWidth := 0
+
+	if s.useEpisode {
+		for _, video := range s.videos {
+			maxEpisodeWidth = max(len(video.Episode), maxEpisodeWidth)
+		}
+	}
+
 	for i, video := range s.videos {
-		renderVideoItem(video, s.selected[i], i == s.currentIndex, s.useEpisode)
+		renderVideoItem(video, s.selected[i], i == s.currentIndex, s.useEpisode, maxEpisodeWidth)
 	}
 
 	fmt.Print("\r" + colors.ClearLine)
@@ -130,7 +138,7 @@ func (s *SelectionState) render(isUpdate bool) {
 }
 
 // renderVideoItem displays a single video item.
-func renderVideoItem(video models.Video, isSelected bool, isCurrent bool, useEpisode bool) {
+func renderVideoItem(video models.Video, isSelected bool, isCurrent bool, useEpisode bool, maxEpisodeWidth int) {
 	fmt.Print("\r" + colors.ClearLine)
 
 	checkbox := colors.CheckboxUnchecked
@@ -143,7 +151,7 @@ func renderVideoItem(video models.Video, isSelected bool, isCurrent bool, useEpi
 
 	videoText := video.Title
 	if useEpisode {
-		videoText = fmt.Sprintf("%s %s", video.Episode, video.Title)
+		videoText = fmt.Sprintf("%-*s %s", maxEpisodeWidth, video.Episode, video.Title)
 	}
 
 	if isCurrent {
@@ -154,7 +162,7 @@ func renderVideoItem(video models.Video, isSelected bool, isCurrent bool, useEpi
 }
 
 // runEventLoop processes keyboard input until the user confirms or cancels.
-func runEventLoop(state *SelectionState) ([]int, error) {
+func runEventLoop(state *selectionState) ([]int, error) {
 	for {
 		event, err := ReadKey()
 		if err != nil {
@@ -176,7 +184,7 @@ func runEventLoop(state *SelectionState) ([]int, error) {
 }
 
 // toggleCurrent toggles the selection of the current item and moves to the next.
-func (s *SelectionState) toggleCurrent() {
+func (s *selectionState) toggleCurrent() {
 	s.selected[s.currentIndex] = !s.selected[s.currentIndex]
 	s.currentIndex = (s.currentIndex + 1) % len(s.videos)
 }

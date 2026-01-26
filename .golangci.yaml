@@ -16,7 +16,7 @@ linters:
         linters:
           - gochecknoglobals
           - gochecknoinits
-      - path: internal/helper/ui/colors/colors.go
+      - path: internal/helper/ui/ansi/ansi.go
         linters:
           - godoclint
       - path: internal/helper/ui/input/input.go
@@ -49,6 +49,11 @@ linters:
       excludes:
         - G101
         - G304
+    wsl_v5:
+      disable:
+        - append
+        - assign
+        - expr
 
 formatters:
   enable:

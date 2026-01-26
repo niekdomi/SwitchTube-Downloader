@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"switchtube-downloader/internal/helper/ui/colors"
+	"switchtube-downloader/internal/helper/ui/ansi"
 )
 
 // Progress bar symbols.
@@ -38,22 +38,25 @@ func formatSpeed(bytePerSec float64) (float64, string) {
 
 // renderProgressBar renders a progress bar with percentage and speed.
 func renderProgressBar(percentage float64, bytePerSec float64) string {
-	filled := int((percentage / percentageBase) * float64(ProgressBarWidth))
+	filled := 0
+	if percentage > 0 {
+		filled = int((percentage / percentageBase) * float64(ProgressBarWidth))
+	}
 
 	var bar strings.Builder
 
 	for i := range ProgressBarWidth {
 		if i < filled {
-			bar.WriteString(colors.Green + ProgressFilled)
+			bar.WriteString(ansi.Green + ProgressFilled)
 		} else {
-			bar.WriteString(colors.Dim + ProgressEmpty)
+			bar.WriteString(ansi.Dim + ProgressEmpty)
 		}
 	}
 
-	bar.WriteString(colors.Reset)
+	bar.WriteString(ansi.Reset)
 
 	displaySpeed, unit := formatSpeed(bytePerSec)
-	fmt.Fprintf(&bar, " %5.1f%% %s%6.2f %s%s", percentage, colors.Dim, displaySpeed, unit, colors.Reset)
+	fmt.Fprintf(&bar, " %5.1f%% %s%6.2f %s%s", percentage, ansi.Dim, displaySpeed, unit, ansi.Reset)
 
 	return bar.String()
 }

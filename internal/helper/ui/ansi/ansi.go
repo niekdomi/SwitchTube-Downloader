@@ -1,5 +1,5 @@
-// Package colors provides ANSI color codes and modifiers for terminal output.
-package colors
+// Package ansi provides ANSI color codes and modifiers for terminal output.
+package ansi
 
 // ANSI color codes and modifiers.
 const (
@@ -21,9 +21,10 @@ const (
 	Info    = Cyan
 
 	// Cursor control.
-	HideCursor = "\033[?25l"
-	ShowCursor = "\033[?25h"
-	ClearLine  = "\033[2K"
+	HideCursor   = "\033[?25l"
+	ShowCursor   = "\033[?25h"
+	ClearLine    = "\033[2K"
+	MoveCursorUp = "\033[%dA"
 
 	// Checkbox symbols.
 	CheckboxChecked   = "■"

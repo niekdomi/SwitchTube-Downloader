@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"switchtube-downloader/internal/download"
-	"switchtube-downloader/internal/helper/ui/colors"
+	"switchtube-downloader/internal/helper/ui/ansi"
 	"switchtube-downloader/internal/models"
 
 	"github.com/spf13/cobra"
@@ -31,35 +31,35 @@ var downloadCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		episode, err := cmd.Flags().GetBool("episode")
 		if err != nil {
-			fmt.Printf("%s[ERROR]%s Error getting episode flag: %v\n", colors.Error, colors.Reset, err)
+			fmt.Printf("%s[ERROR]%s Error getting episode flag: %v\n", ansi.Error, ansi.Reset, err)
 
 			return
 		}
 
 		skip, err := cmd.Flags().GetBool("skip")
 		if err != nil {
-			fmt.Printf("%s[ERROR]%s Error getting skip flag: %v\n", colors.Error, colors.Reset, err)
+			fmt.Printf("%s[ERROR]%s Error getting skip flag: %v\n", ansi.Error, ansi.Reset, err)
 
 			return
 		}
 
 		force, err := cmd.Flags().GetBool("force")
 		if err != nil {
-			fmt.Printf("%s[ERROR]%s Error getting force flag: %v\n", colors.Error, colors.Reset, err)
+			fmt.Printf("%s[ERROR]%s Error getting force flag: %v\n", ansi.Error, ansi.Reset, err)
 
 			return
 		}
 
 		all, err := cmd.Flags().GetBool("all")
 		if err != nil {
-			fmt.Printf("%s[ERROR]%s Error getting all flag: %v\n", colors.Error, colors.Reset, err)
+			fmt.Printf("%s[ERROR]%s Error getting all flag: %v\n", ansi.Error, ansi.Reset, err)
 
 			return
 		}
 
 		output, err := cmd.Flags().GetString("output")
 		if err != nil {
-			fmt.Printf("%s[ERROR]%s Error getting output flag: %v\n", colors.Error, colors.Reset, err)
+			fmt.Printf("%s[ERROR]%s Error getting output flag: %v\n", ansi.Error, ansi.Reset, err)
 
 			return
 		}
@@ -71,12 +71,12 @@ var downloadCmd = &cobra.Command{
 				Skip:       skip,
 				Force:      force,
 				All:        all,
-				Output:     strings.TrimSpace(output),
+				OutputDir:  strings.TrimSpace(output),
 			}
 
 			err = download.Download(config)
 			if err != nil {
-				fmt.Printf("%s[ERROR]%s %v\n", colors.Error, colors.Reset, err)
+				fmt.Printf("%s[ERROR]%s %v\n", ansi.Error, ansi.Reset, err)
 			}
 		}
 	},

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"switchtube-downloader/internal/helper/ui/colors"
+	"switchtube-downloader/internal/helper/ui/ansi"
 	"switchtube-downloader/internal/helper/ui/input"
 	"switchtube-downloader/internal/helper/ui/table"
 
@@ -58,7 +58,7 @@ func (tm *Manager) Delete() error {
 
 	// Confirm deletion
 	if !input.Confirm("Are you sure you want to delete the stored token?") {
-		fmt.Printf("%s[CANCELLED]%s Token deletion cancelled\n", colors.Warning, colors.Reset)
+		fmt.Printf("%s[CANCELLED]%s Token deletion cancelled\n", ansi.Warning, ansi.Reset)
 
 		return nil
 	}
@@ -71,7 +71,7 @@ func (tm *Manager) Delete() error {
 		return fmt.Errorf("failed to delete token: %w", err)
 	}
 
-	fmt.Printf("%s[SUCCESS]%s Token successfully deleted from keyring\n", colors.Success, colors.Reset)
+	fmt.Printf("%s[SUCCESS]%s Token successfully deleted from keyring\n", ansi.Success, ansi.Reset)
 
 	return nil
 }
@@ -112,10 +112,10 @@ func (tm *Manager) Set() error {
 		return errTokenEmpty
 	}
 
-	fmt.Printf("\n%s[INFO]%s Validating token with SwitchTube API...\n", colors.Info, colors.Reset)
+	fmt.Printf("\n%s[INFO]%s Validating token with SwitchTube API...\n", ansi.Info, ansi.Reset)
 
 	if err := tm.validateToken(token); err != nil {
-		fmt.Printf("\n%s[ERROR]%s Token validation failed\n", colors.Error, colors.Reset)
+		fmt.Printf("\n%s[ERROR]%s Token validation failed\n", ansi.Error, ansi.Reset)
 		tm.displayTokenInfo(token, false)
 
 		return err
@@ -131,14 +131,14 @@ func (tm *Manager) Set() error {
 	}
 
 	tm.displayTokenInfo(token, true)
-	fmt.Printf("%s[SUCCESS]%s Token is valid and successfully stored in keyring\n", colors.Success, colors.Reset)
+	fmt.Printf("%s[SUCCESS]%s Token is valid and successfully stored in keyring\n", ansi.Success, ansi.Reset)
 
 	return nil
 }
 
 // Validate validates the stored token and displays its status.
 func (tm *Manager) Validate() error {
-	fmt.Printf("\n%s[INFO]%s Validating token...\n", colors.Info, colors.Reset)
+	fmt.Printf("\n%s[INFO]%s Validating token...\n", ansi.Info, ansi.Reset)
 
 	// Get() already performs validation
 	token, err := tm.Get()
@@ -165,7 +165,7 @@ func (tm *Manager) checkExistingToken() error {
 	fmt.Println()
 
 	if !input.Confirm("Do you want to replace it?") {
-		fmt.Printf("%s[CANCELLED]%s Operation cancelled\n", colors.Warning, colors.Reset)
+		fmt.Printf("%s[CANCELLED]%s Operation cancelled\n", ansi.Warning, ansi.Reset)
 
 		return ErrTokenAlreadyExists
 	}
@@ -182,9 +182,9 @@ func (tm *Manager) displayTokenInfo(token string, valid bool) {
 
 	var status string
 	if valid {
-		status = colors.Success + "Valid" + colors.Reset
+		status = ansi.Success + "Valid" + ansi.Reset
 	} else {
-		status = colors.Error + "Invalid" + colors.Reset
+		status = ansi.Error + "Invalid" + ansi.Reset
 	}
 
 	table.DisplayTokenInfo(tm.keyringService, username, status, tm.maskToken(token), len(token))
@@ -206,7 +206,9 @@ func (tm *Manager) maskToken(token string) string {
 		return strings.Repeat("*", len(token))
 	}
 
-	return token[:maskVisibleChars] + strings.Repeat("*", len(token)-maskThreshold) + token[len(token)-maskVisibleChars:]
+	return token[:maskVisibleChars] +
+		strings.Repeat("*", len(token)-maskThreshold) +
+		token[len(token)-maskVisibleChars:]
 }
 
 // validateToken checks if the token is valid by making a request to the SwitchTube API.

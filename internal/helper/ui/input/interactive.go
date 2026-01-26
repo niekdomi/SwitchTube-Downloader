@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"switchtube-downloader/internal/helper/ui/colors"
+	"switchtube-downloader/internal/helper/ui/ansi"
 	"switchtube-downloader/internal/helper/ui/terminal"
 	"switchtube-downloader/internal/models"
 )
@@ -60,7 +60,7 @@ func SelectVideos(videos []models.Video, all bool, useEpisode bool) ([]int, erro
 	defer func() {
 		_ = termState.Restore()
 
-		fmt.Print(colors.ShowCursor)
+		fmt.Print(ansi.ShowCursor)
 	}()
 
 	state := newSelectionState(videos, useEpisode)
@@ -106,7 +106,7 @@ func initializeTerminal() (*terminal.State, error) {
 		return nil, fmt.Errorf("%w: %w", terminal.ErrFailedToSetRawMode, err)
 	}
 
-	fmt.Print(colors.HideCursor)
+	fmt.Print(ansi.HideCursor)
 
 	return termState, nil
 }
@@ -124,40 +124,40 @@ func (s *selectionState) moveUp() {
 // render displays the current selection state.
 func (s *selectionState) render(isUpdate bool) {
 	if isUpdate {
-		fmt.Printf("\033[%dA", len(s.videos)+1) // Move cursor up to the start of the list
+		fmt.Printf(ansi.MoveCursorUp, len(s.videos)+1) // Move cursor up to the top of the list
 	}
 
-	fmt.Print("\r" + colors.ClearLine)
-	fmt.Printf("%s%sChoose videos to download:%s\n", colors.Bold, colors.Cyan, colors.Reset)
+	fmt.Print("\r" + ansi.ClearLine)
+	fmt.Printf("%s%sChoose videos to download:%s\n", ansi.Bold, ansi.Cyan, ansi.Reset)
 
-	maxEpisodeWidth := 0
+	longestEpisodeName := 0
 
 	if s.useEpisode {
 		for _, video := range s.videos {
-			maxEpisodeWidth = max(len(video.Episode), maxEpisodeWidth)
+			longestEpisodeName = max(len(video.Episode), longestEpisodeName)
 		}
 	}
 
 	for i, video := range s.videos {
-		renderVideoItem(video, s.selected[i], i == s.currentIndex, s.useEpisode, maxEpisodeWidth)
+		renderVideoItem(video, s.selected[i], i == s.currentIndex, s.useEpisode, longestEpisodeName)
 	}
 
-	fmt.Print("\r" + colors.ClearLine)
-	fmt.Printf("%sNavigation: ↑↓/j/k  Toggle: Space  Confirm: Enter%s", colors.Dim, colors.Reset)
+	fmt.Print("\r" + ansi.ClearLine)
+	fmt.Printf("%sNavigation: ↑↓/j/k  Toggle: Space  Confirm: Enter%s", ansi.Dim, ansi.Reset)
 
 	_ = os.Stdout.Sync()
 }
 
 // renderVideoItem displays a single video item.
 func renderVideoItem(video models.Video, isSelected bool, isCurrent bool, useEpisode bool, maxEpisodeWidth int) {
-	fmt.Print("\r" + colors.ClearLine)
+	fmt.Print("\r" + ansi.ClearLine)
 
-	checkbox := colors.CheckboxUnchecked
+	checkbox := ansi.CheckboxUnchecked
 	checkboxColor := ""
 
 	if isSelected {
-		checkbox = colors.CheckboxChecked
-		checkboxColor = colors.Green
+		checkbox = ansi.CheckboxChecked
+		checkboxColor = ansi.Green
 	}
 
 	videoText := video.Title
@@ -166,9 +166,9 @@ func renderVideoItem(video models.Video, isSelected bool, isCurrent bool, useEpi
 	}
 
 	if isCurrent {
-		fmt.Printf("  %s%s%s %s%s%s\n", checkboxColor, checkbox, colors.Reset, colors.Bold, videoText, colors.Reset)
+		fmt.Printf("  %s%s%s %s%s%s\n", checkboxColor, checkbox, ansi.Reset, ansi.Bold, videoText, ansi.Reset)
 	} else {
-		fmt.Printf("  %s%s%s %s%s%s\n", checkboxColor, checkbox, colors.Reset, colors.Dim, videoText, colors.Reset)
+		fmt.Printf("  %s%s%s %s%s%s\n", checkboxColor, checkbox, ansi.Reset, ansi.Dim, videoText, ansi.Reset)
 	}
 }
 

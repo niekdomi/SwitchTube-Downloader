@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"switchtube-downloader/internal/helper/ui/colors"
+	"switchtube-downloader/internal/helper/ui/ansi"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/olekukonko/tablewriter/tw"
@@ -16,10 +16,10 @@ const createAccessTokenURL = "https://tube.switch.ch/access_tokens"
 // DisplayInstructions shows token creation instructions in a table.
 func DisplayInstructions() {
 	data := [][]string{
-		{colors.Bold + "1." + colors.Reset + " Visit: " + createAccessTokenURL},
-		{colors.Bold + "2." + colors.Reset + " Click 'Create New Token'"},
-		{colors.Bold + "3." + colors.Reset + " Copy the generated token"},
-		{colors.Bold + "4." + colors.Reset + " Paste it below"},
+		{ansi.Bold + "1." + ansi.Reset + " Visit: " + createAccessTokenURL},
+		{ansi.Bold + "2." + ansi.Reset + " Click 'Create New Token'"},
+		{ansi.Bold + "3." + ansi.Reset + " Copy the generated token"},
+		{ansi.Bold + "4." + ansi.Reset + " Paste it below"},
 	}
 
 	table := createTable()

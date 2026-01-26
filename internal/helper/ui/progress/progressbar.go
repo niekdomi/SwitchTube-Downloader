@@ -53,10 +53,9 @@ func (pw *progressWriter) Write(p []byte) (int, error) {
 
 // displayProgress renders the progress bar to stdout.
 func (pw *progressWriter) displayProgress() {
-	elapsed := time.Since(pw.startTime).Seconds()
-	if elapsed == 0 {
-		elapsed = 0.001 // Prevent division by zero
-	}
+	const divByZeroGuard = 0.001
+
+	elapsed := max(time.Since(pw.startTime).Seconds(), divByZeroGuard)
 
 	percentage := 0.0
 	if pw.total > 0 {

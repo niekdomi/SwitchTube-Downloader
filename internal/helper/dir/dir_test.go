@@ -98,7 +98,7 @@ func TestCreateFilename(t *testing.T) {
 			title:     "Test Video",
 			mediaType: "video/mp4",
 			episodeNr: "",
-			config:    models.DownloadConfig{Output: "output", UseEpisode: false},
+			config:    models.DownloadConfig{OutputDir: "output", UseEpisode: false},
 			want:      filepath.Join("output", "Test_Video.mp4"),
 		},
 		{
@@ -346,7 +346,7 @@ func TestCreateChannelFolder(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tempDir := t.TempDir()
 			config := models.DownloadConfig{
-				Output: filepath.Join(tempDir, tt.outputPath),
+				OutputDir: filepath.Join(tempDir, tt.outputPath),
 			}
 
 			folder, err := CreateChannelFolder(tt.channelName, config)

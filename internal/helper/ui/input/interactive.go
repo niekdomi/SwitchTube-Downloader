@@ -19,10 +19,11 @@ var (
 
 // selectionState holds the state of the interactive selection UI.
 type selectionState struct {
-	videos       []models.Video
-	selected     []bool
-	currentIndex int
-	useEpisode   bool
+	videos           []models.Video
+	selected         []bool
+	currentIndex     int
+	useEpisode       bool
+	highlightEnabled bool
 }
 
 // newSelectionState creates a new selection state with all items selected by default.
@@ -33,10 +34,11 @@ func newSelectionState(videos []models.Video, useEpisode bool) *selectionState {
 	}
 
 	return &selectionState{
-		videos:       videos,
-		selected:     selected,
-		currentIndex: 0,
-		useEpisode:   useEpisode,
+		videos:           videos,
+		selected:         selected,
+		currentIndex:     0,
+		useEpisode:       useEpisode,
+		highlightEnabled: true,
 	}
 }
 
@@ -91,7 +93,9 @@ func (s *selectionState) handleEvent(event Event) (bool, bool, error) {
 	case KeySpace:
 		s.toggleCurrent()
 	case KeyEnter:
-		return false, true, nil
+		s.highlightEnabled = false
+
+		return true, true, nil
 	case KeyCtrlC:
 		return false, true, ErrUserAbort
 	}
@@ -139,7 +143,8 @@ func (s *selectionState) render(isUpdate bool) {
 	}
 
 	for i, video := range s.videos {
-		renderVideoItem(video, s.selected[i], i == s.currentIndex, s.useEpisode, longestEpisodeName)
+		isCurrent := s.highlightEnabled && i == s.currentIndex
+		renderVideoItem(video, s.selected[i], isCurrent, s.useEpisode, longestEpisodeName)
 	}
 
 	fmt.Print("\r" + ansi.ClearLine)
@@ -185,14 +190,14 @@ func runEventLoop(state *selectionState) ([]int, error) {
 			return nil, err
 		}
 
+		if shouldRender {
+			state.render(true)
+		}
+
 		if shouldExit {
 			fmt.Println()
 
 			return state.getSelectedIndices(), nil
-		}
-
-		if shouldRender {
-			state.render(true)
 		}
 	}
 }

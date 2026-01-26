@@ -10,7 +10,12 @@ import (
 	"switchtube-downloader/internal/models"
 )
 
-var errFailedToReadKey = errors.New("failed to read key")
+var (
+	// ErrUserAbort is returned when the user aborts an action (e.g. via Ctrl+C).
+	ErrUserAbort = errors.New("aborted by user")
+
+	errFailedToReadKey = errors.New("failed to read key")
+)
 
 // selectionState holds the state of the interactive selection UI.
 type selectionState struct {
@@ -77,7 +82,7 @@ func (s *selectionState) getSelectedIndices() []int {
 }
 
 // handleEvent processes a keyboard event and returns whether to render and exit.
-func (s *selectionState) handleEvent(event Event) (bool, bool) {
+func (s *selectionState) handleEvent(event Event) (bool, bool, error) {
 	switch event.Key { //nolint:exhaustive
 	case KeyArrowUp:
 		s.moveUp()
@@ -86,15 +91,12 @@ func (s *selectionState) handleEvent(event Event) (bool, bool) {
 	case KeySpace:
 		s.toggleCurrent()
 	case KeyEnter:
-		return false, true
+		return false, true, nil
 	case KeyCtrlC:
-		fmt.Println()
-		os.Exit(0)
-
-		return false, false
+		return false, true, ErrUserAbort
 	}
 
-	return true, false
+	return true, false, nil
 }
 
 // initializeTerminal sets up the terminal for interactive input.
@@ -178,7 +180,10 @@ func runEventLoop(state *selectionState) ([]int, error) {
 			return nil, fmt.Errorf("%w: %w", errFailedToReadKey, err)
 		}
 
-		shouldRender, shouldExit := state.handleEvent(event)
+		shouldRender, shouldExit, err := state.handleEvent(event)
+		if err != nil {
+			return nil, err
+		}
 
 		if shouldExit {
 			fmt.Println()

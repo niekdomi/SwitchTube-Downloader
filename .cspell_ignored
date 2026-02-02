@@ -1,19 +1,18 @@
 # add here words that are not recognized by the spellchecker but are correct
-apiurl
-bühler
-cyclop
-dominik
-ewma
+APIURL
 exhaustruct
+Gbps
+gochecknoglobals
+gosec
+Kbps
+Mbps
 namequestionmarkgreaterless
 niekdomi
 nolint
 olekukonko
-rbound
 stretchr
 swdl
 switchtube
 tablewriter
-vbauerster
 vidéo
 ñoño

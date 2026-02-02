@@ -3,38 +3,36 @@ version: "2"
 linters:
   default: all
   disable:
-    - arangolint
     - depguard
-    - dupword
     - forbidigo
-    - ginkgolinter
     - gochecknoglobals
-    - gochecknoinits
-    - godox
-    - goheader
-    - goprintffuncname
-    - grouper
     - lll
-    - misspell
     - noinlineerr
-    - sloglint
-    - spancheck
-    - sqlclosecheck
-    - tagalign
-    - unqueryvet
     - varnamelen
     - wsl
-    - zerologlint
 
   exclusions:
     rules:
-      - path: _test\.go
+      - path: cmd/
+        linters:
+          - gochecknoinits
+      - path: internal/helper/ui/ansi/ansi.go
+        linters:
+          - godoclint
+      - path: internal/helper/ui/input/input.go
         linters:
           - cyclop
+          - mnd
+      - path: internal/helper/ui/table/table.go
+        linters:
+          - errcheck
+          - exhaustruct
+          - gosec
+      - path: _test\.go
+        linters:
           - errcheck
           - exhaustruct
           - funlen
-          - gocognit
           - gosec
           - maintidx
           - paralleltest
@@ -51,6 +49,15 @@ linters:
       excludes:
         - G101
         - G304
+        - G602
+    mnd:
+      ignored-numbers:
+        - "100"
+    wsl_v5:
+      disable:
+        - append
+        - assign
+        - expr
 
 formatters:
   enable:

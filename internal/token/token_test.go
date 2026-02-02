@@ -152,23 +152,38 @@ func TestDelete(t *testing.T) {
 	tests := []struct {
 		name       string
 		setupToken bool
+		input      string
 		wantErr    bool
 	}{
 		{
 			name:       "successful deletion",
 			setupToken: true,
+			input:      "y\n",
 			wantErr:    false,
 		},
 		{
 			name:       "token not found",
 			setupToken: false,
+			input:      "y\n",
 			wantErr:    true,
+		},
+		{
+			name:       "deletion cancelled",
+			setupToken: true,
+			input:      "n\n",
+			wantErr:    false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			restore := suppressStdout(t)
+			defer restore()
+
 			tokenMgr := setupTestKeyring(t, tt.setupToken, "test-token")
+
+			restoreInput := setupTestInput(t, tt.input)
+			defer restoreInput()
 
 			err := tokenMgr.Delete()
 			if tt.wantErr {

@@ -8,17 +8,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"switchtube-downloader/internal/helper/ui"
+	"switchtube-downloader/internal/helper/ui/input"
 	"switchtube-downloader/internal/models"
 )
 
 const (
 	// File and directory permissions.
 	dirPermissions = 0o755
-
-	// Minimum number of parts in a media type string
-	// (e.g., "video/mp4" has 2 parts).
-	minMediaTypeParts = 2
 )
 
 var (
@@ -31,26 +27,25 @@ var (
 // CreateFilename creates a sanitized filename from video title and media type.
 func CreateFilename(title string, mediaType string, episodeNr string, config models.DownloadConfig) string {
 	// Extract extension from media type (e.g., "video/mp4" -> "mp4")
-	parts := strings.Split(mediaType, "/")
-
-	extension := "mp4" // default fallback
-	if len(parts) == minMediaTypeParts {
-		extension = parts[1]
+	_, extension, found := strings.Cut(mediaType, "/")
+	if !found {
+		extension = "mp4" // fallback
 	}
 
 	sanitizedTitle := sanitizeFilename(title)
 	sanitizedTitle = strings.ReplaceAll(sanitizedTitle, " ", "_")
 
-	// Add episode prefix if episode flag is set
 	var filename string
+
+	// Add episode prefix if episode flag is set
 	if config.UseEpisode && episodeNr != "" {
 		filename = fmt.Sprintf("%s_%s.%s", episodeNr, sanitizedTitle, extension)
 	} else {
 		filename = fmt.Sprintf("%s.%s", sanitizedTitle, extension)
 	}
 
-	if config.Output != "" {
-		filename = filepath.Join(config.Output, filename)
+	if config.OutputDir != "" {
+		filename = filepath.Join(config.OutputDir, filename)
 	}
 
 	return filepath.Clean(filename)
@@ -61,7 +56,7 @@ func CreateFilename(title string, mediaType string, episodeNr string, config mod
 func OverwriteVideoIfExists(filename string, config models.DownloadConfig) bool {
 	if !config.Force {
 		if _, err := os.Stat(filename); err == nil {
-			if config.Skip || !ui.Confirm("File %s already exists. Overwrite?", filename) {
+			if config.Skip || !input.Confirm("File %s already exists. Overwrite?", filename) {
 				return true
 			}
 		}
@@ -89,8 +84,8 @@ func CreateChannelFolder(channelName string, config models.DownloadConfig) (stri
 	folderName := strings.ReplaceAll(channelName, "/", " - ")
 	folderName = filepath.Clean(folderName)
 
-	if config.Output != "" {
-		folderName = filepath.Join(config.Output, folderName)
+	if config.OutputDir != "" {
+		folderName = filepath.Join(config.OutputDir, folderName)
 	}
 
 	if err := os.MkdirAll(folderName, dirPermissions); err != nil {
@@ -102,24 +97,21 @@ func CreateChannelFolder(channelName string, config models.DownloadConfig) (stri
 
 // sanitizeFilename removes or replaces invalid characters in filenames.
 func sanitizeFilename(filename string) string {
-	replacements := map[string]string{
-		"/":  "-",
-		"\\": "-",
-		":":  "-",
-		"*":  "",
-		"?":  "",
-		"\"": "",
-		"<":  "",
-		">":  "",
-		"|":  "-",
-	}
+	replacer := strings.NewReplacer(
+		"/", "-",
+		"\\", "-",
+		":", "-",
+		"*", "",
+		"?", "",
+		"\"", "",
+		"<", "",
+		">", "",
+		"|", "-",
+	)
 
-	sanitized := filename
-	for invalid, replacement := range replacements {
-		sanitized = strings.ReplaceAll(sanitized, invalid, replacement)
-	}
-
+	sanitized := replacer.Replace(filename)
 	sanitized = strings.TrimSpace(sanitized)
+
 	for strings.Contains(sanitized, "--") {
 		sanitized = strings.ReplaceAll(sanitized, "--", "-")
 	}

@@ -50,7 +50,7 @@ Flags:
 Use "switchtube-downloader [command] --help" for more information about a command.
 ```
 
-## Downloading a video or a channel
+### Downloading a video or a channel
 
 To download a video or channel, use the `download` command with either the
 video/channel ID or its full URL: `./switchtube-downloader download {id or url}`
@@ -80,7 +80,7 @@ Flags:
   -s, --skip            Skip video if it already exists
 ```
 
-### Using Flags
+#### Using Flags
 
 You can add optional flags to customize the download. For example:
 
@@ -88,7 +88,7 @@ You can add optional flags to customize the download. For example:
 
 - Multiple flags combined: `./switchtube-downloader download dh0sX6Fj1I -a -f -e`
 
-### Available Flags
+#### Available Flags
 
 - `-a`, `--all`: Download all videos from a channel. This means that if you
   provide a channel ID, it will download all videos in that channel. You can
@@ -123,7 +123,7 @@ You can add optional flags to customize the download. For example:
 - `-s`, `--skip`: Skips the download if the video already exists in the output
   directory. This is useful to avoid re-downloading videos.
 
-## Managing access token
+### Managing access token
 
 The `token` command manages the SwitchTube access token stored in the system
 keyring:
@@ -150,7 +150,7 @@ Use "switchtube-downloader token [command] --help" for more information about a 
 
 </details>
 
-## Help page
+### Help page
 
 Instead of using the `--help` flag, you can also run `help [command]` to get
 more information about a specific command. For example:

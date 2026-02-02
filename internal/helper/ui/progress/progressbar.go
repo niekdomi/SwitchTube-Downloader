@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"switchtube-downloader/internal/helper/ui/ansi"
 )
 
 const (
@@ -22,14 +24,14 @@ var errFailedToCopyData = errors.New("failed to copy data")
 
 // progressWriter wraps an io.Writer and tracks progress.
 type progressWriter struct {
-	writer           io.Writer
-	total            int64
-	written          int64
-	startTime        time.Time
-	lastUpdate       time.Time
-	filename         string
-	rowIndex         int // Row index for multi-line progress display (0 = single line mode)
-	maxFilenameWidth int // Maximum filename width for alignment (0 = no padding)
+	writer          io.Writer // Underlying destination writer
+	total           int64     // Expected total bytes
+	written         int64     // Bytes written so far
+	startTime       time.Time // Start time for speed calculation
+	lastUpdate      time.Time // Last progress update time
+	filename        string    // File being downloaded
+	rowIndex        int       // Row index for multi-line progress display
+	longestFilename int       // Longest filename for alignment
 }
 
 // Write implements io.Writer and updates progress.
@@ -37,7 +39,6 @@ func (pw *progressWriter) Write(p []byte) (int, error) {
 	n, err := pw.writer.Write(p)
 	pw.written += int64(n)
 
-	// Update progress display
 	now := time.Now()
 	if now.Sub(pw.lastUpdate) >= minUpdateGap {
 		pw.lastUpdate = now
@@ -59,7 +60,7 @@ func (pw *progressWriter) displayProgress() {
 
 	percentage := 0.0
 	if pw.total > 0 {
-		percentage = (float64(pw.written) / float64(pw.total)) * percentageBase
+		percentage = (float64(pw.written) / float64(pw.total)) * 100
 	}
 
 	speed := (float64(pw.written) / elapsed)
@@ -68,39 +69,35 @@ func (pw *progressWriter) displayProgress() {
 	defer displayMutex.Unlock()
 
 	basename := filepath.Base(pw.filename)
-	// Pad filename if maxFilenameWidth is set
-	if pw.maxFilenameWidth > 0 && len(basename) < pw.maxFilenameWidth {
-		basename += strings.Repeat(" ", pw.maxFilenameWidth-len(basename))
+
+	// Add padding for alignment if needed
+	if (pw.longestFilename > 0) && (len(basename) < pw.longestFilename) {
+		basename += strings.Repeat(" ", pw.longestFilename-len(basename))
 	}
 
 	if pw.rowIndex > 0 {
-		// Multi-line mode: save cursor, move up to target row, update, restore cursor
-		fmt.Print("\033[s")
-		fmt.Printf("\033[%dA", pw.rowIndex)
-		fmt.Printf("\r\033[K%s %s", basename, renderProgressBar(percentage, speed))
-		fmt.Print("\033[u")
+		fmt.Print(ansi.SaveCursor)
+		fmt.Printf(ansi.MoveCursorUp, pw.rowIndex)
+		fmt.Printf("%s%s%s %s", ansi.CarriageReturn, ansi.ClearLineRight, basename, renderProgressBar(percentage, speed))
+		fmt.Print(ansi.RestoreCursor)
 	} else {
-		// Single-line mode: use carriage return
-		fmt.Printf("\r%s %s", basename, renderProgressBar(percentage, speed))
+		fmt.Printf("%s%s %s", ansi.CarriageReturn, basename, renderProgressBar(percentage, speed))
 	}
 }
 
-// BarWithRow sets up a progress bar with a specific row index for multi-line display.
-// rowIndex 0 means single-line mode (uses \r), rowIndex > 0 uses cursor positioning.
-// maxFilenameWidth is used for padding filenames to align progress bars (0 = no padding).
-func BarWithRow(src io.Reader, dst io.Writer, total int64, filename string, rowIndex int, maxFilenameWidth int) error {
+// BarWithRow sets up a progress bar.
+func BarWithRow(src io.Reader, dst io.Writer, total int64, filename string, rowIndex int, longestFilename int) error {
 	pw := &progressWriter{
-		writer:           dst,
-		total:            total,
-		written:          0,
-		startTime:        time.Now(),
-		lastUpdate:       time.Now(),
-		filename:         filename,
-		rowIndex:         rowIndex,
-		maxFilenameWidth: maxFilenameWidth,
+		writer:          dst,
+		total:           total,
+		written:         0,
+		startTime:       time.Now(),
+		lastUpdate:      time.Now(),
+		filename:        filename,
+		rowIndex:        rowIndex,
+		longestFilename: longestFilename,
 	}
 
-	// Copy data with progress tracking
 	if _, err := io.Copy(pw, src); err != nil {
 		return fmt.Errorf("%w: %w", errFailedToCopyData, err)
 	}

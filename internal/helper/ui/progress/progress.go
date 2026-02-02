@@ -13,10 +13,9 @@ const (
 	ProgressFilled   = "━"
 	ProgressEmpty    = "─"
 	ProgressBarWidth = 30
-	percentageBase   = 100.0
 )
 
-// formatSpeed formats download speed in human-readable format.
+// formatSpeed returns the speed formatted in appropriate units as a float and string.
 func formatSpeed(bytePerSec float64) (float64, string) {
 	const (
 		Kbps = 125.0
@@ -40,7 +39,7 @@ func formatSpeed(bytePerSec float64) (float64, string) {
 func renderProgressBar(percentage float64, bytePerSec float64) string {
 	filled := 0
 	if percentage > 0 {
-		filled = int((percentage / percentageBase) * float64(ProgressBarWidth))
+		filled = int((percentage / 100) * ProgressBarWidth)
 	}
 
 	var bar strings.Builder

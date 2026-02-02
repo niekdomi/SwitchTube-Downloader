@@ -402,12 +402,13 @@ func Download(config models.DownloadConfig) error {
 	case videoType, unknownType:
 		if err = downloader.downloadVideo(id, true, 0, 0); err == nil {
 			return nil
-		} else if downloadType == videoType || errors.Is(err, dir.ErrFailedToCreateFile) {
+		}
+
+		if downloadType == videoType || errors.Is(err, dir.ErrFailedToCreateFile) {
 			return fmt.Errorf("%w: %w", errFailedToDownloadVideo, err)
 		}
 
-		// Fallthrough if type is unknown and try as channel
-		fallthrough
+		fallthrough // Fallthrough if type is unknown and try as channel
 	case channelType:
 		if err = downloader.downloadChannel(id); err != nil {
 			if downloadType == unknownType {
@@ -425,8 +426,8 @@ func Download(config models.DownloadConfig) error {
 func extractIDAndType(input string) (string, mediaType, error) {
 	input = strings.TrimSpace(input)
 
-	// If input doesn't start with baseURL, return as unknown type
-	// This is the case if ht Id was passed as an argument
+	// If input doesn't start with baseURL, return as unknown type. This is the
+	// case when the Id was passed as an argument
 	prefixAndID, hasPrefix := strings.CutPrefix(input, baseURL)
 	if !hasPrefix {
 		return input, unknownType, nil

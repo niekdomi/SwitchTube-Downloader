@@ -2,77 +2,65 @@
 package input
 
 import (
+	"errors"
 	"fmt"
 	"os"
 )
 
-// Key represents different types of keyboard input.
-type Key int
+var errFailedToReadKey = errors.New("failed to read key")
 
 // Key represents different types of keyboard input.
+type Key uint8
+
+// Define key constants.
 const (
 	KeyArrowUp Key = iota
 	KeyArrowDown
 	KeySpace
 	KeyEnter
 	KeyCtrlC
-	KeyChar
 	KeyUnknown
 )
 
-// Event represents a keyboard input event.
-type Event struct {
-	Key  Key
-	Char rune
-	// Determine checkbox display
+var singleByteKeys = map[byte]Key{
+	'\r': KeyEnter,
+	'\n': KeyEnter,
+	' ':  KeySpace,
+	3:    KeyCtrlC, // Ctrl+C
+	'j':  KeyArrowDown,
+	'k':  KeyArrowUp,
+}
+
+var escapeSequences = map[byte]Key{
+	'A': KeyArrowUp,
+	'B': KeyArrowDown,
 }
 
 // ReadKey reads a single key press from stdin.
-func ReadKey() (Event, error) {
+func ReadKey() (Key, error) {
 	buf := make([]byte, 3)
 
 	n, err := os.Stdin.Read(buf)
 	if err != nil {
-		return Event{Key: KeyUnknown, Char: 0}, fmt.Errorf("%w: %w", errFailedToReadKey, err)
+		return KeyUnknown, fmt.Errorf("%w: %w", errFailedToReadKey, err)
 	}
 
 	if n == 0 {
-		return Event{Key: KeyUnknown, Char: 0}, nil
+		return KeyUnknown, nil
 	}
 
-	// Handle escape sequences (arrow keys)
-	if buf[0] == '\033' {
-		if n >= 3 && buf[1] == '[' { //nolint:gosec
-			switch buf[2] { //nolint:gosec
-			case 'A':
-				return Event{Key: KeyArrowUp, Char: 0}, nil
-			case 'B':
-				return Event{Key: KeyArrowDown, Char: 0}, nil
-			}
+	if key, exists := singleByteKeys[buf[0]]; exists {
+		return key, nil
+	}
+
+	// Handle ANSI escape sequences
+	if buf[0] == '\033' && n >= 3 && buf[1] == '[' {
+		if key, exists := escapeSequences[buf[2]]; exists {
+			return key, nil
 		}
 
-		return Event{Key: KeyUnknown, Char: 0}, nil
+		return KeyUnknown, nil
 	}
 
-	// Handle special characters
-	switch buf[0] { //nolint:gosec
-	case '\r', '\n':
-		return Event{Key: KeyEnter, Char: 0}, nil
-	case ' ':
-		return Event{Key: KeySpace, Char: 0}, nil
-	case 3: // Ctrl+C
-		return Event{Key: KeyCtrlC, Char: 0}, nil
-	case 'j':
-		return Event{Key: KeyArrowDown, Char: 'j'}, nil
-	case 'k':
-		return Event{Key: KeyArrowUp, Char: 'k'}, nil
-	default:
-		// Printable character
-		//nolint:gosec
-		if buf[0] >= 32 && buf[0] <= 126 {
-			return Event{Key: KeyChar, Char: rune(buf[0])}, nil
-		}
-
-		return Event{Key: KeyUnknown, Char: 0}, nil
-	}
+	return KeyUnknown, nil
 }

@@ -10,43 +10,43 @@ import (
 	"switchtube-downloader/internal/models"
 )
 
-var (
-	// ErrUserAbort is returned when the user aborts an action (e.g. via Ctrl+C).
-	ErrUserAbort = errors.New("aborted by user")
-
-	errFailedToReadKey = errors.New("failed to read key")
-)
+// ErrUserAbort is returned when the user aborts an action (e.g. via Ctrl+C).
+var ErrUserAbort = errors.New("aborted by user")
 
 // selectionState holds the state of the interactive selection UI.
 type selectionState struct {
-	videos           []models.Video
-	selected         []bool
-	currentIndex     int
-	useEpisode       bool
-	highlightEnabled bool
+	videos           []models.Video // All videos to choose from
+	selected         []bool         // Selection status for each video
+	currentIndex     int            // Currently highlighted index
+	useEpisode       bool           // Whether to show episode numbers
+	highlightEnabled bool           // Whether highlighting is enabled
+	rendered         bool           // Track if initial render has occurred
 }
 
-// newSelectionState creates a new selection state with all items selected by default.
+// newSelectionState creates a new selection state with all videos selected by default.
 func newSelectionState(videos []models.Video, useEpisode bool) *selectionState {
-	selected := make([]bool, len(videos))
-	for i := range selected {
-		selected[i] = true
+	selectedVideo := make([]bool, len(videos))
+
+	for i := range selectedVideo {
+		selectedVideo[i] = true
 	}
 
 	return &selectionState{
 		videos:           videos,
-		selected:         selected,
+		selected:         selectedVideo,
 		currentIndex:     0,
 		useEpisode:       useEpisode,
 		highlightEnabled: true,
+		rendered:         false,
 	}
 }
 
-// SelectVideos shows an interactive checkbox-based selector. All items are selected by default.
+// SelectVideos shows an interactive checkbox-based selector.
 func SelectVideos(videos []models.Video, all bool, useEpisode bool) ([]int, error) {
 	// If --all flag is used, select all videos
 	if all || len(videos) == 0 {
 		indices := make([]int, len(videos))
+
 		for i := range indices {
 			indices[i] = i
 		}
@@ -61,21 +61,21 @@ func SelectVideos(videos []models.Video, all bool, useEpisode bool) ([]int, erro
 
 	defer func() {
 		_ = termState.Restore()
-
 		fmt.Print(ansi.ShowCursor)
 	}()
 
 	state := newSelectionState(videos, useEpisode)
-	state.render(false)
+	state.render()
 
 	return runEventLoop(state)
 }
 
-// getSelectedIndices returns the indices of all selected items.
+// getSelectedIndices returns the indices of all selected videos.
 func (s *selectionState) getSelectedIndices() []int {
 	indices := make([]int, 0, len(s.selected))
-	for i, sel := range s.selected {
-		if sel {
+
+	for i, selectedVideo := range s.selected {
+		if selectedVideo {
 			indices = append(indices, i)
 		}
 	}
@@ -83,9 +83,10 @@ func (s *selectionState) getSelectedIndices() []int {
 	return indices
 }
 
-// handleEvent processes a keyboard event and returns whether to render and exit.
-func (s *selectionState) handleEvent(event Event) (bool, bool, error) {
-	switch event.Key { //nolint:exhaustive
+// handleEvent processes a keyboard event and returns whether to render the ui,
+// whether to exit the ui selection and occurred error.
+func (s *selectionState) handleEvent(key Key) (bool, bool, error) {
+	switch key {
 	case KeyArrowUp:
 		s.moveUp()
 	case KeyArrowDown:
@@ -98,6 +99,8 @@ func (s *selectionState) handleEvent(event Event) (bool, bool, error) {
 		return true, true, nil
 	case KeyCtrlC:
 		return false, true, ErrUserAbort
+	case KeyUnknown:
+		return false, false, nil
 	}
 
 	return true, false, nil
@@ -126,13 +129,14 @@ func (s *selectionState) moveUp() {
 }
 
 // render displays the current selection state.
-func (s *selectionState) render(isUpdate bool) {
-	if isUpdate {
-		fmt.Printf(ansi.MoveCursorUp, len(s.videos)+1) // Move cursor up to the top of the list
+func (s *selectionState) render() {
+	if s.rendered {
+		// Move cursor up to the top of the list
+		fmt.Printf(ansi.MoveCursorUp, len(s.videos))
+	} else {
+		fmt.Print("\r" + ansi.ClearLine)
+		fmt.Printf("%s%sChoose videos to download:%s\n", ansi.Bold, ansi.Cyan, ansi.Reset)
 	}
-
-	fmt.Print("\r" + ansi.ClearLine)
-	fmt.Printf("%s%sChoose videos to download:%s\n", ansi.Bold, ansi.Cyan, ansi.Reset)
 
 	longestEpisodeName := 0
 
@@ -143,18 +147,22 @@ func (s *selectionState) render(isUpdate bool) {
 	}
 
 	for i, video := range s.videos {
-		isCurrent := s.highlightEnabled && i == s.currentIndex
-		renderVideoItem(video, s.selected[i], isCurrent, s.useEpisode, longestEpisodeName)
+		isCurrent := s.highlightEnabled && (i == s.currentIndex)
+		s.renderVideo(video, s.selected[i], isCurrent, longestEpisodeName)
 	}
 
-	fmt.Print("\r" + ansi.ClearLine)
-	fmt.Printf("%sNavigation: ↑↓/j/k  Toggle: Space  Confirm: Enter%s", ansi.Dim, ansi.Reset)
+	if !s.rendered {
+		fmt.Print("\r" + ansi.ClearLine)
+		fmt.Printf("%sNavigation: ↑↓/j/k  Toggle: Space  Confirm: Enter%s", ansi.Dim, ansi.Reset)
+
+		s.rendered = true
+	}
 
 	_ = os.Stdout.Sync()
 }
 
-// renderVideoItem displays a single video item.
-func renderVideoItem(video models.Video, isSelected bool, isCurrent bool, useEpisode bool, maxEpisodeWidth int) {
+// renderVideo displays a single video in the selection.
+func (s *selectionState) renderVideo(video models.Video, isSelected bool, isCurrent bool, maxEpisodeWidth int) {
 	fmt.Print("\r" + ansi.ClearLine)
 
 	checkbox := ansi.CheckboxUnchecked
@@ -166,15 +174,22 @@ func renderVideoItem(video models.Video, isSelected bool, isCurrent bool, useEpi
 	}
 
 	videoText := video.Title
-	if useEpisode {
+	if s.useEpisode {
 		videoText = fmt.Sprintf("%-*s %s", maxEpisodeWidth, video.Episode, video.Title)
 	}
 
+	style := ansi.Dim
 	if isCurrent {
-		fmt.Printf("  %s%s%s %s%s%s\n", checkboxColor, checkbox, ansi.Reset, ansi.Bold, videoText, ansi.Reset)
-	} else {
-		fmt.Printf("  %s%s%s %s%s%s\n", checkboxColor, checkbox, ansi.Reset, ansi.Dim, videoText, ansi.Reset)
+		style = ansi.Bold
 	}
+
+	fmt.Printf("  %s%s%s %s%s%s\n", checkboxColor, checkbox, ansi.Reset, style, videoText, ansi.Reset)
+}
+
+// toggleCurrent toggles the selection of the current video and moves to the next.
+func (s *selectionState) toggleCurrent() {
+	s.selected[s.currentIndex] = !s.selected[s.currentIndex]
+	s.currentIndex = (s.currentIndex + 1) % len(s.videos)
 }
 
 // runEventLoop processes keyboard input until the user confirms or cancels.
@@ -191,7 +206,7 @@ func runEventLoop(state *selectionState) ([]int, error) {
 		}
 
 		if shouldRender {
-			state.render(true)
+			state.render()
 		}
 
 		if shouldExit {
@@ -200,10 +215,4 @@ func runEventLoop(state *selectionState) ([]int, error) {
 			return state.getSelectedIndices(), nil
 		}
 	}
-}
-
-// toggleCurrent toggles the selection of the current item and moves to the next.
-func (s *selectionState) toggleCurrent() {
-	s.selected[s.currentIndex] = !s.selected[s.currentIndex]
-	s.currentIndex = (s.currentIndex + 1) % len(s.videos)
 }

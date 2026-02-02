@@ -5,6 +5,7 @@ linters:
   disable:
     - depguard
     - forbidigo
+    - gochecknoglobals
     - lll
     - noinlineerr
     - varnamelen
@@ -14,7 +15,6 @@ linters:
     rules:
       - path: cmd/
         linters:
-          - gochecknoglobals
           - gochecknoinits
       - path: internal/helper/ui/ansi/ansi.go
         linters:
@@ -49,6 +49,10 @@ linters:
       excludes:
         - G101
         - G304
+        - G602
+    mnd:
+      ignored-numbers:
+        - "100"
     wsl_v5:
       disable:
         - append

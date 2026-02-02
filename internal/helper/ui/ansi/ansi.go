@@ -21,10 +21,14 @@ const (
 	Info    = Cyan
 
 	// Cursor control.
-	HideCursor   = "\033[?25l"
-	ShowCursor   = "\033[?25h"
-	ClearLine    = "\033[2K"
-	MoveCursorUp = "\033[%dA"
+	HideCursor     = "\033[?25l"
+	ShowCursor     = "\033[?25h"
+	SaveCursor     = "\033[s"
+	RestoreCursor  = "\033[u"
+	CarriageReturn = "\r"
+	ClearLine      = "\033[2K"
+	ClearLineRight = "\033[K"   // Clear from cursor to end of line
+	MoveCursorUp   = "\033[%dA" // Move cursor up N lines
 
 	// Checkbox symbols.
 	CheckboxChecked   = "■"

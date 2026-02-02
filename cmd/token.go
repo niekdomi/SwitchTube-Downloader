@@ -9,8 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// init initializes the token command and its subcommands, adding them to the
-// root command.
+// init initializes the token command and its subcommands, adding them to the root command.
 func init() {
 	rootCmd.AddCommand(tokenCmd)
 	tokenCmd.AddCommand(tokenGetCmd)

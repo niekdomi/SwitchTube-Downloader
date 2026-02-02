@@ -11,8 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// init initializes the download command and adds it to the root command with
-// its flags.
+// init initializes the download command and adds it to the root command with its flags.
 func init() {
 	rootCmd.AddCommand(downloadCmd)
 	downloadCmd.Flags().BoolP("episode", "e", false, "Prefixes the video with episode-number e.g. 01_OR_Mapping.mp4")

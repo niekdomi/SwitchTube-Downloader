@@ -58,6 +58,12 @@ linters:
         - append
         - assign
         - expr
+    revive:
+      rules:
+        - name: enforce-repeated-arg-type-style
+          arguments:
+            - func-arg-style: "full"
+              func-ret-val-style: "full"
 
 formatters:
   enable:

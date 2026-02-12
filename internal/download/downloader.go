@@ -141,7 +141,6 @@ func (d *downloader) downloadSelectedVideos(videos []models.Video, selectedIndic
 }
 
 // downloadVideo downloads a single video with optional progress bar positioning.
-// rowIndex and maxFilenameWidth are used for multi-line progress display (0 = single-line mode).
 func (d *downloader) downloadVideo(videoID string, checkExists bool, rowIndex int, maxFilenameWidth int) error {
 	video, err := d.getVideoMetadata(videoID)
 	if err != nil {
@@ -158,7 +157,7 @@ func (d *downloader) downloadVideo(videoID string, checkExists bool, rowIndex in
 	}
 
 	filename := dir.CreateFilename(video.Title, variants[0].MediaType, video.Episode, d.config)
-	if checkExists && dir.OverwriteVideoIfExists(filename, d.config) {
+	if checkExists && !dir.OverwriteVideoIfExists(filename, d.config) {
 		return nil // Skip download
 	}
 
@@ -343,7 +342,7 @@ func (d *downloader) prepareDownloads(videos []models.Video, indices []int, fail
 		}
 
 		filename := dir.CreateFilename(video.Title, variants[0].MediaType, video.Episode, d.config)
-		if !dir.OverwriteVideoIfExists(filename, d.config) {
+		if dir.OverwriteVideoIfExists(filename, d.config) {
 			videosToDownload = append(videosToDownload, idx)
 
 			basename := filepath.Base(filename)

@@ -51,18 +51,18 @@ func CreateFilename(title string, mediaType string, episodeNr string, config mod
 	return filepath.Clean(filename)
 }
 
-// OverwriteVideoIfExists checks if a video file exists and prompts to overwrite
-// it. Returns false if the file doesn't exist or if overwriting is declined.
+// OverwriteVideoIfExists checks if a video file exists and prompts to overwrite it.
+// Returns true if the file should be overwritten or does not exist.
 func OverwriteVideoIfExists(filename string, config models.DownloadConfig) bool {
 	if !config.Force {
 		if _, err := os.Stat(filename); err == nil {
 			if config.Skip || !input.Confirm("File %s already exists. Overwrite?", filename) {
-				return true
+				return false
 			}
 		}
 	}
 
-	return false
+	return true
 }
 
 // CreateVideoFile creates a video file on disk with the specified filename.

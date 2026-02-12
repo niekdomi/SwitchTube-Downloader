@@ -47,8 +47,11 @@ linters:
     funcorder:
       alphabetical: true
 
-    # gocritic:
-    #   enable-all: true
+    gocritic:
+      enable-all: true
+      disabled-checks:
+        - paramTypeCombine
+        - unnamedResult
 
     gosec:
       excludes:
@@ -71,6 +74,18 @@ linters:
           arguments:
             - func-arg-style: "full"
               func-ret-val-style: "full"
+        - name: enforce-map-style
+          arguments:
+            - "make"
+        - name: enforce-slice-style
+          arguments:
+            - "make"
+        - name: increment-decrement
+        - name: inefficient-map-lookup
+        - name: package-directory-mismatch
+        - name: unnecessary-if
+        - name: unnecessary-format
+        - name: useless-fallthrough
 
     unconvert:
       fast-math: true

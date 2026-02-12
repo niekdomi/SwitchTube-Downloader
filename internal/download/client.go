@@ -70,7 +70,7 @@ func (c *client) makeRequest(url string) (*http.Response, error) {
 		return nil, fmt.Errorf("%w: %w", errFailedToGetToken, err)
 	}
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errFailedToCreateRequest, err)
 	}

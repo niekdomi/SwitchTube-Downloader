@@ -17,7 +17,7 @@ const (
 	minUpdateGap  = 50 * time.Millisecond
 )
 
-//nolint:gochecknoglobals
+//nolint:gochecknoglobals // displayMutex is used across multiple goroutines for progress bar synchronization
 var displayMutex sync.Mutex // Prevents concurrent display updates
 
 var errFailedToCopyData = errors.New("failed to copy data")

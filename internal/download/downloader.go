@@ -422,14 +422,14 @@ func Download(config models.DownloadConfig) error {
 }
 
 // extractIDAndType extracts the id and determines if it's a video or channel.
-func extractIDAndType(input string) (string, mediaType, error) {
-	input = strings.TrimSpace(input)
+func extractIDAndType(media string) (string, mediaType, error) {
+	media = strings.TrimSpace(media)
 
 	// If input doesn't start with baseURL, return as unknown type. This is the
 	// case when the Id was passed as an argument
-	prefixAndID, hasPrefix := strings.CutPrefix(input, baseURL)
+	prefixAndID, hasPrefix := strings.CutPrefix(media, baseURL)
 	if !hasPrefix {
-		return input, unknownType, nil
+		return media, unknownType, nil
 	}
 
 	// Try to extract video ID

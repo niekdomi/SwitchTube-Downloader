@@ -213,7 +213,7 @@ func (tm *Manager) maskToken(token string) string {
 
 // validateToken checks if the token is valid by making a request to the SwitchTube API.
 func (tm *Manager) validateToken(token string) error {
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, profileAPIURL, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, profileAPIURL, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -221,7 +221,7 @@ func (tm *Manager) validateToken(token string) error {
 	req.Header.Set("Authorization", "Token "+token)
 	req.Header.Set("Accept", "application/json")
 
-	client := &http.Client{ //nolint:exhaustruct
+	client := &http.Client{ //nolint:exhaustruct // Only Timeout field is needed, other fields use defaults
 		Timeout: requestTimeoutSeconds * time.Second,
 	}
 

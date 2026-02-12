@@ -86,6 +86,7 @@ func newDownloader(config models.DownloadConfig, client *client) *downloader {
 }
 
 // downloadChannel downloads selected videos from a channel.
+// Fetches channel info, displays video list, prompts for selection, and downloads chosen videos.
 func (d *downloader) downloadChannel(channelID string) error {
 	channelInfo, err := d.getChannelMetadata(channelID)
 	if err != nil {
@@ -128,7 +129,7 @@ func (d *downloader) downloadChannel(channelID string) error {
 	return nil
 }
 
-// downloadSelectedVideos downloads the selected videos and reports results.
+// downloadSelectedVideos downloads the videos at the given indices and prints a summary.
 func (d *downloader) downloadSelectedVideos(videos []models.Video, selectedIndices []int) {
 	var failed []string
 
@@ -140,7 +141,8 @@ func (d *downloader) downloadSelectedVideos(videos []models.Video, selectedIndic
 	d.printResults(len(selectedIndices), failed)
 }
 
-// downloadVideo downloads a single video with optional progress bar positioning.
+// downloadVideo downloads a single video by ID. Returns error if download fails.
+// rowIndex and maxFilenameWidth are used for multi-file progress display alignment.
 func (d *downloader) downloadVideo(videoID string, checkExists bool, rowIndex int, maxFilenameWidth int) error {
 	video, err := d.getVideoMetadata(videoID)
 	if err != nil {
@@ -175,7 +177,7 @@ func (d *downloader) downloadVideo(videoID string, checkExists bool, rowIndex in
 	return nil
 }
 
-// downloadVideoStream handles the actual file download.
+// downloadVideoStream downloads video data from endpoint to file with progress tracking.
 func (d *downloader) downloadVideoStream(endpoint string, file *os.File, rowIndex int, maxFilenameWidth int) error {
 	fullURL, err := url.JoinPath(baseURL, endpoint)
 	if err != nil {
@@ -209,6 +211,7 @@ func (d *downloader) downloadVideoStream(endpoint string, file *os.File, rowInde
 }
 
 // downloadVideosParallel downloads multiple videos concurrently.
+// Returns slice of failed video titles.
 func (d *downloader) downloadVideosParallel(videos []models.Video, indices []int, longestVideoName int) []string {
 	var (
 		failed []string
@@ -257,6 +260,7 @@ func (d *downloader) downloadVideosParallel(videos []models.Video, indices []int
 }
 
 // getChannelMetadata retrieves channel metadata from the API.
+// Returns channel metadata including name.
 func (d *downloader) getChannelMetadata(channelID string) (*channelMetadata, error) {
 	fullURL, err := url.JoinPath(baseURL, channelAPI, channelID)
 	if err != nil {
@@ -272,6 +276,7 @@ func (d *downloader) getChannelMetadata(channelID string) (*channelMetadata, err
 }
 
 // getChannelVideos retrieves all videos from a channel.
+// Returns slice of videos with their IDs, titles, and episode numbers.
 func (d *downloader) getChannelVideos(channelID string) ([]models.Video, error) {
 	fullURL, err := url.JoinPath(baseURL, channelAPI, channelID, "videos")
 	if err != nil {
@@ -287,6 +292,7 @@ func (d *downloader) getChannelVideos(channelID string) ([]models.Video, error) 
 }
 
 // getVideoMetadata retrieves video metadata from the API.
+// Returns video info including ID, title, and episode number.
 func (d *downloader) getVideoMetadata(videoID string) (*models.Video, error) {
 	fullURL, err := url.JoinPath(baseURL, videoAPI, videoID)
 	if err != nil {
@@ -302,6 +308,7 @@ func (d *downloader) getVideoMetadata(videoID string) (*models.Video, error) {
 }
 
 // getVideoVariants retrieves available video variants from the API.
+// Returns slice of variants with download paths and media types.
 func (d *downloader) getVideoVariants(videoID string) ([]videoVariant, error) {
 	fullURL, err := url.JoinPath(baseURL, videoAPI, videoID, "video_variants")
 	if err != nil {
@@ -317,6 +324,7 @@ func (d *downloader) getVideoVariants(videoID string) ([]videoVariant, error) {
 }
 
 // prepareDownloads checks which videos need to be downloaded and validates their availability.
+// Returns indices of videos to download and longest filename width for alignment.
 func (d *downloader) prepareDownloads(videos []models.Video, indices []int, failed *[]string) ([]int, int) {
 	var (
 		videosToDownload []int
@@ -367,7 +375,8 @@ func (d *downloader) printResults(selectedCount int, failed []string) {
 	}
 }
 
-// processDownloads performs the actual video downloads in parallel and returns failed video titles.
+// processDownloads performs the actual video downloads in parallel.
+// Returns slice of failed video titles.
 func (d *downloader) processDownloads(videos []models.Video, indices []int, longestVideoName int) []string {
 	var failed []string
 
@@ -387,6 +396,7 @@ func (d *downloader) processDownloads(videos []models.Video, indices []int, long
 }
 
 // Download initiates the download process based on the provided configuration.
+// Extracts ID and type from media field, then downloads video or channel accordingly.
 func Download(config models.DownloadConfig) error {
 	id, downloadType, err := extractIDAndType(config.Media)
 	if err != nil {
@@ -421,7 +431,8 @@ func Download(config models.DownloadConfig) error {
 	return nil
 }
 
-// extractIDAndType extracts the id and determines if it's a video or channel.
+// extractIDAndType extracts the ID and determines if it's a video or channel.
+// Returns ID, media type (video/channel/unknown), and error if URL is invalid.
 func extractIDAndType(media string) (string, mediaType, error) {
 	media = strings.TrimSpace(media)
 

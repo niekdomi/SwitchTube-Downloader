@@ -77,6 +77,7 @@ func (tm *Manager) Delete() error {
 }
 
 // Get retrieves the access token from the system keyring.
+// Returns the token string and error if token not found or validation fails.
 func (tm *Manager) Get() (string, error) {
 	username, err := tm.getUsername()
 	if err != nil {
@@ -100,6 +101,7 @@ func (tm *Manager) Get() (string, error) {
 }
 
 // Set creates and stores a new access token in the system keyring.
+// Prompts user for token input, validates it, and stores if valid.
 func (tm *Manager) Set() error {
 	if err := tm.checkExistingToken(); err != nil {
 		return err
@@ -137,6 +139,7 @@ func (tm *Manager) Set() error {
 }
 
 // Validate validates the stored token and displays its status.
+// Returns error if token doesn't exist or is invalid.
 func (tm *Manager) Validate() error {
 	fmt.Printf("\n%s[INFO]%s Validating token...\n", ansi.Info, ansi.Reset)
 
@@ -154,6 +157,7 @@ func (tm *Manager) Validate() error {
 }
 
 // checkExistingToken checks if a token already exists and prompts for replacement.
+// Returns ErrTokenAlreadyExists if user declines replacement.
 func (tm *Manager) checkExistingToken() error {
 	existingToken, err := tm.Get()
 	if errors.Is(err, errNoToken) {
@@ -190,7 +194,8 @@ func (tm *Manager) displayTokenInfo(token string, valid bool) {
 	table.DisplayTokenInfo(tm.keyringService, username, status, tm.maskToken(token), len(token))
 }
 
-// getUsername returns the current username.
+// getUsername returns the current system username.
+// Returns username string and error if user lookup fails.
 func (tm *Manager) getUsername() (string, error) {
 	u, err := user.Current()
 	if err != nil {
@@ -212,6 +217,7 @@ func (tm *Manager) maskToken(token string) string {
 }
 
 // validateToken checks if the token is valid by making a request to the SwitchTube API.
+// Returns error if API request fails or token is invalid.
 func (tm *Manager) validateToken(token string) error {
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, profileAPIURL, http.NoBody)
 	if err != nil {

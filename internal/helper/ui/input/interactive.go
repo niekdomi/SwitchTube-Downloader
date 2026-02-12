@@ -41,7 +41,8 @@ func newSelectionState(videos []models.Video, useEpisode bool) *selectionState {
 	}
 }
 
-// SelectVideos shows an interactive checkbox-based selector.
+// SelectVideos shows an interactive checkbox-based selector for choosing videos.
+// Returns slice of selected video indices and error if user aborts or terminal fails.
 func SelectVideos(videos []models.Video, all bool, useEpisode bool) ([]int, error) {
 	// If --all flag is used, select all videos
 	if all || len(videos) == 0 {
@@ -83,8 +84,8 @@ func (s *selectionState) getSelectedIndices() []int {
 	return indices
 }
 
-// handleEvent processes a keyboard event and returns whether to render the ui,
-// whether to exit the ui selection and occurred error.
+// handleEvent processes a keyboard event.
+// Returns shouldRender, shouldExit flag and error if user aborts.
 func (s *selectionState) handleEvent(key Key) (bool, bool, error) {
 	switch key {
 	case KeyArrowUp:
@@ -107,6 +108,7 @@ func (s *selectionState) handleEvent(key Key) (bool, bool, error) {
 }
 
 // initializeTerminal sets up the terminal for interactive input.
+// Returns terminal state for restoration and error if setup fails.
 func initializeTerminal() (*terminal.State, error) {
 	termState, err := terminal.EnableRawMode()
 	if err != nil {
@@ -193,6 +195,7 @@ func (s *selectionState) toggleCurrent() {
 }
 
 // runEventLoop processes keyboard input until the user confirms or cancels.
+// Returns selected video indices and error if user aborts or key reading fails.
 func runEventLoop(state *selectionState) ([]int, error) {
 	for {
 		event, err := ReadKey()

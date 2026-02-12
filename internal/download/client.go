@@ -36,7 +36,8 @@ func newClient(tm *token.Manager) *client {
 	}
 }
 
-// makeJSONRequest makes an authenticated HTTP request and decodes the response.
+// makeJSONRequest makes an authenticated HTTP request and decodes JSON response into target.
+// Returns error if request fails or JSON decoding fails.
 func (c *client) makeJSONRequest(url string, target any) error {
 	resp, err := c.makeRequest(url)
 	if err != nil {
@@ -63,7 +64,8 @@ func (c *client) makeJSONRequest(url string, target any) error {
 	return nil
 }
 
-// makeRequest makes an authenticated HTTP request.
+// makeRequest makes an authenticated HTTP request using the stored token.
+// Returns HTTP response and error if any.
 func (c *client) makeRequest(url string) (*http.Response, error) {
 	apiToken, err := c.tokenManager.Get()
 	if err != nil {

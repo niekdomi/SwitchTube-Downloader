@@ -85,7 +85,9 @@ func (pw *progressWriter) displayProgress() {
 	}
 }
 
-// BarWithRow sets up a progress bar.
+// BarWithRow copies data from src to dst while displaying a progress bar.
+// rowIndex positions the progress bar for multi-file downloads (0 for single file).
+// Returns error if data copying fails.
 func BarWithRow(src io.Reader, dst io.Writer, total int64, filename string, rowIndex int, longestFilename int) error {
 	pw := &progressWriter{
 		writer:          dst,

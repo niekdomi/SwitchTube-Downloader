@@ -41,7 +41,7 @@ var (
 
 // Manager encapsulates token management logic.
 type Manager struct {
-	keyringService string
+	keyringService string // Service name used to store tokens in the system keyring
 }
 
 // NewTokenManager creates a new instance of Manager.

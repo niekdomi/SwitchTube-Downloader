@@ -62,19 +62,19 @@ var (
 
 // videoVariant represents a video download variant.
 type videoVariant struct {
-	Path      string `json:"path"`
-	MediaType string `json:"mediaType"`
+	Path      string `json:"path"`      // Relative path to the video file on the server
+	MediaType string `json:"mediaType"` // MIME type of the video (e.g., "video/mp4")
 }
 
 // channelMetadata represents channel metadata.
 type channelMetadata struct {
-	Name string `json:"name"`
+	Name string `json:"name"` // Display name of the channel
 }
 
 // downloader handles downloading of both videos and channels.
 type downloader struct {
-	client *client
-	config models.DownloadConfig
+	client *client               // HTTP client wrapper for making authenticated API requests
+	config models.DownloadConfig // Configuration options for the download operation
 }
 
 // newDownloader creates a new Downloader instance.

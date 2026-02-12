@@ -18,8 +18,8 @@ var (
 
 // State stores the original terminal state for restoration.
 type State struct {
-	state *term.State
-	fd    int
+	state *term.State // Saved terminal state for restoration
+	fd    int         // File descriptor of the terminal
 }
 
 // EnableRawMode switches the terminal to raw mode for interactive input.

@@ -19,8 +19,8 @@ var (
 
 // client handles all API interactions.
 type client struct {
-	tokenManager *token.Manager
-	client       *http.Client
+	tokenManager *token.Manager // Manages authentication tokens for API requests
+	client       *http.Client   // HTTP client used for making requests
 }
 
 // newClient creates a new instance of Client.

@@ -24,12 +24,12 @@ var errFailedToCopyData = errors.New("failed to copy data")
 
 // progressWriter wraps an io.Writer and tracks progress.
 type progressWriter struct {
-	writer          io.Writer // Underlying destination writer
-	total           int64     // Expected total bytes
-	written         int64     // Bytes written so far
 	startTime       time.Time // Start time for speed calculation
 	lastUpdate      time.Time // Last progress update time
+	writer          io.Writer // Underlying destination writer
 	filename        string    // File being downloaded
+	total           int64     // Expected total bytes
+	written         int64     // Bytes written so far
 	rowIndex        int       // Row index for multi-line progress display
 	longestFilename int       // Longest filename for alignment
 }

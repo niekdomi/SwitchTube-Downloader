@@ -11,11 +11,11 @@ import (
 
 func TestExtractIDAndType(t *testing.T) {
 	tests := []struct {
+		wantErr  error
 		name     string
 		input    string
 		wantID   string
 		wantType mediaType
-		wantErr  error
 	}{
 		{
 			name:     "video URL",

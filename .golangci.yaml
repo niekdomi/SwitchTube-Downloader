@@ -43,27 +43,44 @@ linters:
       exclude:
         - '.+/cobra\.Command$'
         - '.+/cobra\.CompletionOptions$'
+
     funcorder:
       alphabetical: true
+
+    # gocritic:
+    #   enable-all: true
+
     gosec:
       excludes:
         - G101
         - G304
         - G602
+
+    govet:
+      enable-all: true
+      disable:
+        - shadow
+
     mnd:
       ignored-numbers:
         - "100"
-    wsl_v5:
-      disable:
-        - append
-        - assign
-        - expr
+
     revive:
       rules:
         - name: enforce-repeated-arg-type-style
           arguments:
             - func-arg-style: "full"
               func-ret-val-style: "full"
+
+    unconvert:
+      fast-math: true
+      safe: true
+
+    wsl_v5:
+      disable:
+        - append
+        - assign
+        - expr
 
 formatters:
   enable:

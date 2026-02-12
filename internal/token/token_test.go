@@ -60,11 +60,11 @@ func suppressStdout(t *testing.T) func() {
 
 func TestGet(t *testing.T) {
 	tests := []struct {
+		wantErrType error
 		name        string
-		setupToken  bool
 		tokenValue  string
 		wantToken   string
-		wantErrType error
+		setupToken  bool
 	}{
 		{
 			name:        "token retrieval",
@@ -97,11 +97,11 @@ func TestGet(t *testing.T) {
 
 func TestSet(t *testing.T) {
 	tests := []struct {
-		name          string
-		existingToken bool
-		input         string
-		wantErr       bool
 		wantErrType   error
+		name          string
+		input         string
+		existingToken bool
+		wantErr       bool
 	}{
 		{
 			name:        "new token creation",
@@ -151,8 +151,8 @@ func TestSet(t *testing.T) {
 func TestDelete(t *testing.T) {
 	tests := []struct {
 		name       string
-		setupToken bool
 		input      string
+		setupToken bool
 		wantErr    bool
 	}{
 		{
@@ -199,8 +199,8 @@ func TestDelete(t *testing.T) {
 func TestValidate(t *testing.T) {
 	tests := []struct {
 		name       string
-		setupToken bool
 		tokenValue string
+		setupToken bool
 		wantErr    bool
 	}{
 		{

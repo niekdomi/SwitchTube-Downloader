@@ -58,8 +58,8 @@ func TestCreateFilename(t *testing.T) {
 		title     string
 		mediaType string
 		episodeNr string
-		config    models.DownloadConfig
 		want      string
+		config    models.DownloadConfig
 	}{
 		{
 			name:      "basic video",
@@ -155,10 +155,10 @@ func TestOverwriteVideoIfExists(t *testing.T) {
 	tests := []struct {
 		name        string
 		filename    string
-		config      models.DownloadConfig
 		promptInput string
+		config      models.DownloadConfig
 		wantValue   bool
-		createFile  bool // Whether to create the file to simulate existing file
+		createFile  bool
 	}{
 		{
 			name:        "video exists, overwrite",

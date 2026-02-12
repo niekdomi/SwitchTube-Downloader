@@ -73,8 +73,8 @@ type channelMetadata struct {
 
 // downloader handles downloading of both videos and channels.
 type downloader struct {
-	config models.DownloadConfig
 	client *client
+	config models.DownloadConfig
 }
 
 // newDownloader creates a new Downloader instance.

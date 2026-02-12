@@ -67,13 +67,8 @@ jobs:
           use_cspell_files: false
 
   build:
-    strategy:
-      matrix:
-        go: [stable]
-        os: [ubuntu-latest, macos-latest, windows-latest]
-
+    runs-on: ubuntu-latest
     name: Build
-    runs-on: ${{ matrix.os }}
     timeout-minutes: 3
     permissions:
       contents: read

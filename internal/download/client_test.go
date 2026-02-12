@@ -29,11 +29,11 @@ func setupTestClient(t *testing.T) *client {
 
 func TestClient_makeJSONRequest(t *testing.T) {
 	tests := []struct {
+		expectedData   models.Video
 		name           string
 		responseBody   string
 		responseStatus int
 		wantErr        bool
-		expectedData   models.Video
 	}{
 		{
 			name:           "request with invalid token",

@@ -25,6 +25,7 @@ var (
 )
 
 // CreateFilename creates a sanitized filename from video title and media type.
+// Returns the full file path with proper extension, optionally prefixed with episode number.
 func CreateFilename(title string, mediaType string, episodeNr string, config models.DownloadConfig) string {
 	// Extract extension from media type (e.g., "video/mp4" -> "mp4")
 	_, extension, found := strings.Cut(mediaType, "/")
@@ -51,21 +52,22 @@ func CreateFilename(title string, mediaType string, episodeNr string, config mod
 	return filepath.Clean(filename)
 }
 
-// OverwriteVideoIfExists checks if a video file exists and prompts to overwrite
-// it. Returns false if the file doesn't exist or if overwriting is declined.
+// OverwriteVideoIfExists checks if a video file exists and prompts to overwrite it.
+// Returns true if the file should be overwritten or does not exist.
 func OverwriteVideoIfExists(filename string, config models.DownloadConfig) bool {
 	if !config.Force {
 		if _, err := os.Stat(filename); err == nil {
 			if config.Skip || !input.Confirm("File %s already exists. Overwrite?", filename) {
-				return true
+				return false
 			}
 		}
 	}
 
-	return false
+	return true
 }
 
 // CreateVideoFile creates a video file on disk with the specified filename.
+// Creates parent directories if needed. Returns file handle and error if any.
 func CreateVideoFile(filename string) (*os.File, error) {
 	if err := os.MkdirAll(filepath.Dir(filename), dirPermissions); err != nil {
 		return nil, fmt.Errorf("%w: %w", errFailedToCreateFolder, err)
@@ -80,6 +82,7 @@ func CreateVideoFile(filename string) (*os.File, error) {
 }
 
 // CreateChannelFolder creates a folder for the channel using its name.
+// Returns the created folder path and error if any.
 func CreateChannelFolder(channelName string, config models.DownloadConfig) (string, error) {
 	folderName := strings.ReplaceAll(channelName, "/", " - ")
 	folderName = filepath.Clean(folderName)

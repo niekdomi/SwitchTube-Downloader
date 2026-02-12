@@ -37,6 +37,7 @@ var escapeSequences = map[byte]Key{
 }
 
 // ReadKey reads a single key press from stdin.
+// Returns the key pressed and error if reading fails.
 func ReadKey() (Key, error) {
 	buf := make([]byte, 3)
 

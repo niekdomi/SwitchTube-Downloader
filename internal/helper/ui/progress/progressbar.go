@@ -17,19 +17,19 @@ const (
 	minUpdateGap  = 50 * time.Millisecond
 )
 
-//nolint:gochecknoglobals
+//nolint:gochecknoglobals // displayMutex is used across multiple goroutines for progress bar synchronization
 var displayMutex sync.Mutex // Prevents concurrent display updates
 
 var errFailedToCopyData = errors.New("failed to copy data")
 
 // progressWriter wraps an io.Writer and tracks progress.
 type progressWriter struct {
-	writer          io.Writer // Underlying destination writer
-	total           int64     // Expected total bytes
-	written         int64     // Bytes written so far
 	startTime       time.Time // Start time for speed calculation
 	lastUpdate      time.Time // Last progress update time
+	writer          io.Writer // Underlying destination writer
 	filename        string    // File being downloaded
+	total           int64     // Expected total bytes
+	written         int64     // Bytes written so far
 	rowIndex        int       // Row index for multi-line progress display
 	longestFilename int       // Longest filename for alignment
 }
@@ -85,7 +85,9 @@ func (pw *progressWriter) displayProgress() {
 	}
 }
 
-// BarWithRow sets up a progress bar.
+// BarWithRow copies data from src to dst while displaying a progress bar.
+// rowIndex positions the progress bar for multi-file downloads (0 for single file).
+// Returns error if data copying fails.
 func BarWithRow(src io.Reader, dst io.Writer, total int64, filename string, rowIndex int, longestFilename int) error {
 	pw := &progressWriter{
 		writer:          dst,

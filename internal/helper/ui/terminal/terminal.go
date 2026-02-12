@@ -18,12 +18,12 @@ var (
 
 // State stores the original terminal state for restoration.
 type State struct {
-	fd    int
-	state *term.State
+	state *term.State // Saved terminal state for restoration
+	fd    int         // File descriptor of the terminal
 }
 
 // EnableRawMode switches the terminal to raw mode for interactive input.
-// Returns the original state that should be restored later.
+// Returns terminal state for restoration and error if raw mode setup fails.
 func EnableRawMode() (*State, error) {
 	fd := int(os.Stdin.Fd())
 
@@ -53,6 +53,7 @@ func (ts *State) Restore() error {
 }
 
 // IsTerminal checks if stdin is a terminal (not piped input).
+// Returns true if stdin is a terminal, false otherwise.
 func IsTerminal() bool {
 	return term.IsTerminal(int(os.Stdin.Fd()))
 }

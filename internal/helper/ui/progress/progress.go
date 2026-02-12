@@ -15,7 +15,8 @@ const (
 	ProgressBarWidth = 30
 )
 
-// formatSpeed returns the speed formatted in appropriate units as a float and string.
+// formatSpeed converts bytes per second to appropriate units (Gb/s, Mb/s, Kb/s, b/s).
+// Returns speed value and unit as string.
 func formatSpeed(bytePerSec float64) (float64, string) {
 	const (
 		Kbps = 125.0
@@ -35,7 +36,8 @@ func formatSpeed(bytePerSec float64) (float64, string) {
 	}
 }
 
-// renderProgressBar renders a progress bar with percentage and speed.
+// renderProgressBar renders a progress bar with percentage and speed display.
+// Returns formatted string with progress bar, percentage, and download speed.
 func renderProgressBar(percentage float64, bytePerSec float64) string {
 	filled := 0
 	if percentage > 0 {

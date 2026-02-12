@@ -58,8 +58,8 @@ func TestCreateFilename(t *testing.T) {
 		title     string
 		mediaType string
 		episodeNr string
-		config    models.DownloadConfig
 		want      string
+		config    models.DownloadConfig
 	}{
 		{
 			name:      "basic video",
@@ -155,17 +155,17 @@ func TestOverwriteVideoIfExists(t *testing.T) {
 	tests := []struct {
 		name        string
 		filename    string
-		config      models.DownloadConfig
 		promptInput string
+		config      models.DownloadConfig
 		wantValue   bool
-		createFile  bool // Whether to create the file to simulate existing file
+		createFile  bool
 	}{
 		{
 			name:        "video exists, overwrite",
 			filename:    "existing_video.mp4",
 			config:      models.DownloadConfig{},
 			promptInput: "y\n",
-			wantValue:   false,
+			wantValue:   true,
 			createFile:  true,
 		},
 		{
@@ -173,7 +173,7 @@ func TestOverwriteVideoIfExists(t *testing.T) {
 			filename:    "existing_video.mp4",
 			config:      models.DownloadConfig{},
 			promptInput: "\n",
-			wantValue:   true,
+			wantValue:   false,
 			createFile:  true,
 		},
 		{
@@ -181,7 +181,7 @@ func TestOverwriteVideoIfExists(t *testing.T) {
 			filename:    "non_existing_video.mp4",
 			config:      models.DownloadConfig{},
 			promptInput: "",
-			wantValue:   false,
+			wantValue:   true,
 			createFile:  false,
 		},
 		{
@@ -189,7 +189,7 @@ func TestOverwriteVideoIfExists(t *testing.T) {
 			filename:    "existing_video.mp4",
 			config:      models.DownloadConfig{Force: true},
 			promptInput: "",
-			wantValue:   false,
+			wantValue:   true,
 			createFile:  true,
 		},
 		{
@@ -197,7 +197,7 @@ func TestOverwriteVideoIfExists(t *testing.T) {
 			filename:    "non_existing_video.mp4",
 			config:      models.DownloadConfig{Force: true},
 			promptInput: "",
-			wantValue:   false,
+			wantValue:   true,
 			createFile:  false,
 		},
 		{
@@ -205,7 +205,7 @@ func TestOverwriteVideoIfExists(t *testing.T) {
 			filename:    "existing_video.mp4",
 			config:      models.DownloadConfig{Skip: true},
 			promptInput: "",
-			wantValue:   true,
+			wantValue:   false,
 			createFile:  true,
 		},
 		{
@@ -213,7 +213,7 @@ func TestOverwriteVideoIfExists(t *testing.T) {
 			filename:    "non_existing_video.mp4",
 			config:      models.DownloadConfig{Skip: true},
 			promptInput: "",
-			wantValue:   false,
+			wantValue:   true,
 			createFile:  false,
 		},
 	}

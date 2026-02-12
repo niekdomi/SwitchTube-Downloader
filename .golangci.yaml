@@ -43,16 +43,54 @@ linters:
       exclude:
         - '.+/cobra\.Command$'
         - '.+/cobra\.CompletionOptions$'
+
     funcorder:
       alphabetical: true
+
+    gocritic:
+      enable-all: true
+      disabled-checks:
+        - paramTypeCombine
+        - unnamedResult
+
     gosec:
       excludes:
         - G101
         - G304
         - G602
+
+    govet:
+      enable-all: true
+      disable:
+        - shadow
+
     mnd:
       ignored-numbers:
         - "100"
+
+    revive:
+      rules:
+        - name: enforce-repeated-arg-type-style
+          arguments:
+            - func-arg-style: "full"
+              func-ret-val-style: "full"
+        - name: enforce-map-style
+          arguments:
+            - "make"
+        - name: enforce-slice-style
+          arguments:
+            - "make"
+        - name: increment-decrement
+        - name: inefficient-map-lookup
+        - name: package-directory-mismatch
+        - name: unnecessary-if
+        - name: unnecessary-format
+        - name: useless-fallthrough
+
+    unconvert:
+      fast-math: true
+      safe: true
+
     wsl_v5:
       disable:
         - append

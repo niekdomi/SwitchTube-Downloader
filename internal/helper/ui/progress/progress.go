@@ -39,10 +39,7 @@ func formatSpeed(bytePerSec float64) (float64, string) {
 // renderProgressBar renders a progress bar with percentage and speed display.
 // Returns formatted string with progress bar, percentage, and download speed.
 func renderProgressBar(percentage float64, bytePerSec float64) string {
-	filled := 0
-	if percentage > 0 {
-		filled = int((percentage / 100) * ProgressBarWidth)
-	}
+	filled := int(percentage / 100 * ProgressBarWidth)
 
 	var bar strings.Builder
 

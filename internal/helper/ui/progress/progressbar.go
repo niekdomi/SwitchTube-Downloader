@@ -54,16 +54,17 @@ func (pw *progressWriter) Write(p []byte) (int, error) {
 
 // displayProgress renders the progress bar to stdout.
 func (pw *progressWriter) displayProgress() {
-	const divByZeroGuard = 0.001
-
-	elapsed := max(time.Since(pw.startTime).Seconds(), divByZeroGuard)
-
 	percentage := 0.0
 	if pw.total > 0 {
 		percentage = (float64(pw.written) / float64(pw.total)) * 100
 	}
 
-	speed := (float64(pw.written) / elapsed)
+	elapsed := time.Since(pw.startTime).Seconds()
+
+	speed := 0.0
+	if elapsed > 0 {
+		speed = float64(pw.written) / elapsed
+	}
 
 	displayMutex.Lock()
 	defer displayMutex.Unlock()

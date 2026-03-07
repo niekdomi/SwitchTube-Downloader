@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"switchtube-downloader/internal/helper/ui/ansi"
+	"github.com/charmbracelet/x/ansi"
 )
 
 const (
@@ -54,17 +54,16 @@ func (pw *progressWriter) Write(p []byte) (int, error) {
 
 // displayProgress renders the progress bar to stdout.
 func (pw *progressWriter) displayProgress() {
+	const divByZeroGuard = 0.001
+
+	elapsed := max(time.Since(pw.startTime).Seconds(), divByZeroGuard)
+
 	percentage := 0.0
 	if pw.total > 0 {
 		percentage = (float64(pw.written) / float64(pw.total)) * 100
 	}
 
-	elapsed := time.Since(pw.startTime).Seconds()
-
-	speed := 0.0
-	if elapsed > 0 {
-		speed = float64(pw.written) / elapsed
-	}
+	speed := (float64(pw.written) / elapsed)
 
 	displayMutex.Lock()
 	defer displayMutex.Unlock()
@@ -77,12 +76,12 @@ func (pw *progressWriter) displayProgress() {
 	}
 
 	if pw.rowIndex > 0 {
-		fmt.Print(ansi.SaveCursor)
-		fmt.Printf(ansi.MoveCursorUp, pw.rowIndex)
-		fmt.Printf("%s%s%s %s", ansi.CarriageReturn, ansi.ClearLineRight, basename, renderProgressBar(percentage, speed))
-		fmt.Print(ansi.RestoreCursor)
+		fmt.Print(ansi.SaveCurrentCursorPosition)
+		fmt.Print(ansi.CursorUp(pw.rowIndex))
+		fmt.Printf("\r%s%s %s", ansi.EraseLineRight, basename, renderProgressBar(percentage, speed, pw.longestFilename))
+		fmt.Print(ansi.RestoreCurrentCursorPosition)
 	} else {
-		fmt.Printf("%s%s %s", ansi.CarriageReturn, basename, renderProgressBar(percentage, speed))
+		fmt.Printf("\r%s %s", basename, renderProgressBar(percentage, speed, pw.longestFilename))
 	}
 }
 

@@ -58,7 +58,6 @@ linters:
         - G101
         - G304
         - G602
-        - G704
 
     govet:
       enable-all: true

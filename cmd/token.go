@@ -3,11 +3,18 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"switchtube-downloader/internal/token"
 
+	charm "github.com/charmbracelet/log"
 	"github.com/spf13/cobra"
 )
+
+var log = charm.NewWithOptions(os.Stderr, charm.Options{
+	ReportTimestamp: false,
+	ReportCaller:    false,
+})
 
 // init initializes the token command and its subcommands, adding them to the root command.
 func init() {
@@ -24,9 +31,7 @@ var tokenCmd = &cobra.Command{
 	Long:  "Manage the SwitchTube access token stored in the system keyring",
 	Run: func(cmd *cobra.Command, _ []string) {
 		if err := cmd.Help(); err != nil {
-			fmt.Printf("Error displaying help: %v\n", err)
-
-			return
+			log.Error("Error displaying help", "err", err)
 		}
 	},
 }
@@ -34,18 +39,18 @@ var tokenCmd = &cobra.Command{
 var tokenGetCmd = &cobra.Command{
 	Use:   "get",
 	Short: "Get the current access token",
-	Long:  "Checks if an access token is currently stored in the system keyring and returns it if there is one",
+	Long:  "Reads and prints the raw token stored in the system keyring",
 	Run: func(_ *cobra.Command, _ []string) {
 		tokenMgr := token.NewTokenManager()
 
-		token, err := tokenMgr.Get()
+		t, err := tokenMgr.GetRaw()
 		if err != nil {
-			fmt.Printf("Error getting token: %v\n", err)
+			log.Error("Error getting token", "err", err)
 
 			return
 		}
 
-		fmt.Printf("Token: %s\n", token)
+		fmt.Println(t)
 	},
 }
 
@@ -56,12 +61,8 @@ var tokenSetCmd = &cobra.Command{
 	Run: func(_ *cobra.Command, _ []string) {
 		tokenMgr := token.NewTokenManager()
 
-		if err := tokenMgr.Set(); errors.Is(err, token.ErrTokenAlreadyExists) {
-			return
-		} else if err != nil {
-			fmt.Printf("Error setting token: %v\n", err)
-
-			return
+		if err := tokenMgr.Set(); err != nil && !errors.Is(err, token.ErrTokenAlreadyExists) {
+			log.Error("Error setting token", "err", err)
 		}
 	},
 }
@@ -74,9 +75,7 @@ var tokenDeleteCmd = &cobra.Command{
 		tokenMgr := token.NewTokenManager()
 
 		if err := tokenMgr.Delete(); err != nil {
-			fmt.Printf("Error deleting token: %v\n", err)
-
-			return
+			log.Error("Error deleting token", "err", err)
 		}
 	},
 }
@@ -84,14 +83,12 @@ var tokenDeleteCmd = &cobra.Command{
 var tokenValidateCmd = &cobra.Command{
 	Use:   "validate",
 	Short: "Validate the current access token",
-	Long:  "Checks if an access token is currently stored in the system keyring and validates it if there is one",
+	Long:  "Checks if an access token is currently stored in the system keyring and validates it",
 	Run: func(_ *cobra.Command, _ []string) {
 		tokenMgr := token.NewTokenManager()
 
 		if err := tokenMgr.Validate(); err != nil {
-			fmt.Printf("Error validating token: %v\n", err)
-
-			return
+			log.Error("Error validating token", "err", err)
 		}
 	},
 }

@@ -1,22 +1,49 @@
-// Package progress provides utilities for rendering progress bars in the terminal.
 package progress
 
 import (
 	"fmt"
-	"strings"
+	"os"
 
-	"switchtube-downloader/internal/helper/ui/ansi"
+	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/lipgloss"
+	xterm "github.com/charmbracelet/x/term"
 )
 
-// Progress bar symbols.
 const (
-	ProgressFilled   = "━"
-	ProgressEmpty    = "─"
-	ProgressBarWidth = 30
+	// minBarWidth is the minimum progress bar width in characters.
+	minBarWidth = 10
+	// statsWidth is the fixed width of the stats suffix (e.g. " 100.0%  99.99 Gb/s").
+	statsWidth = 22
 )
+
+var (
+	styleDim = lipgloss.NewStyle().Faint(true)
+	pb       = progress.New(
+		progress.WithDefaultGradient(),
+		progress.WithFillCharacters('━', '─'),
+		progress.WithoutPercentage(),
+	)
+)
+
+// barWidth calculates how wide the progress bar should be given the current
+// terminal width and the filename column width.
+func barWidth(filenameWidth int) int {
+	const minPrefixGap = 1
+
+	w, _, err := xterm.GetSize(os.Stdout.Fd())
+	if err != nil || w <= 0 {
+		w = 80
+	}
+
+	available := w - filenameWidth - minPrefixGap - statsWidth
+	if available < minBarWidth {
+		return minBarWidth
+	}
+
+	return available
+}
 
 // formatSpeed converts bytes per second to appropriate units (Gb/s, Mb/s, Kb/s, b/s).
-// Returns speed value and unit as string.
 func formatSpeed(bytePerSec float64) (float64, string) {
 	const (
 		Kbps = 125.0
@@ -36,25 +63,13 @@ func formatSpeed(bytePerSec float64) (float64, string) {
 	}
 }
 
-// renderProgressBar renders a progress bar with percentage and speed display.
-// Returns formatted string with progress bar, percentage, and download speed.
-func renderProgressBar(percentage float64, bytePerSec float64) string {
-	filled := int(percentage / 100 * ProgressBarWidth)
+// renderProgressBar renders a progress bar sized to the terminal width.
+func renderProgressBar(percentage float64, bytePerSec float64, filenameWidth int) string {
+	bw := barWidth(filenameWidth)
 
-	var bar strings.Builder
-
-	for i := range ProgressBarWidth {
-		if i < filled {
-			bar.WriteString(ansi.Green + ProgressFilled)
-		} else {
-			bar.WriteString(ansi.Dim + ProgressEmpty)
-		}
-	}
-
-	bar.WriteString(ansi.Reset)
+	pb.Width = bw
+	renderedBar := pb.ViewAs(percentage / 100.0)
 
 	displaySpeed, unit := formatSpeed(bytePerSec)
-	fmt.Fprintf(&bar, " %5.1f%% %s%6.2f %s%s", percentage, ansi.Dim, displaySpeed, unit, ansi.Reset)
-
-	return bar.String()
+	return fmt.Sprintf("%s %5.1f%% %s", renderedBar, percentage, styleDim.Render(fmt.Sprintf("%6.2f %s", displaySpeed, unit)))
 }

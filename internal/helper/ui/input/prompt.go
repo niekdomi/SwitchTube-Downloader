@@ -1,28 +1,45 @@
 package input
 
 import (
-	"bufio"
+	"errors"
 	"fmt"
-	"os"
-	"strings"
+
+	"github.com/charmbracelet/huh"
 )
 
-// Input prompts the user for input and returns the entered string.
+// Input prompts the user for a single line of text and returns the entered string.
 func Input(prompt string) string {
-	fmt.Print(prompt)
+	var value string
 
-	reader := bufio.NewReader(os.Stdin)
-	input, _ := reader.ReadString('\n')
+	_ = huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title(prompt).
+				Value(&value),
+		),
+	).Run()
 
-	return strings.TrimSpace(input)
+	return value
 }
 
 // Confirm prompts the user for a yes/no confirmation and returns true for yes.
 func Confirm(format string, args ...any) bool {
-	prompt := fmt.Sprintf(format, args...)
+	msg := fmt.Sprintf(format, args...)
+	var confirmed bool
 
-	response := Input(prompt + " (y/N): ")
-	response = strings.ToLower(response)
+	err := huh.NewForm(
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title(msg).
+				Affirmative("Yes").
+				Negative("No").
+				Value(&confirmed),
+		),
+	).Run()
 
-	return response == "y" || response == "yes"
+	if errors.Is(err, huh.ErrUserAborted) {
+		return false
+	}
+
+	return confirmed
 }

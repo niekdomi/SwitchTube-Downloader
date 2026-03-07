@@ -64,17 +64,22 @@ func (c *client) makeJSONRequest(url string, target any) error {
 	return nil
 }
 
-// makeRequest makes an authenticated HTTP request using the stored token.
-// Returns HTTP response and error if any.
+// makeRequest makes an authenticated HTTP GET to url using a background context.
 func (c *client) makeRequest(url string) (*http.Response, error) {
-	apiToken, err := c.tokenManager.Get()
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errFailedToGetToken, err)
-	}
-
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errFailedToCreateRequest, err)
+	}
+
+	return c.makeRequestWithReq(req)
+}
+
+// makeRequestWithReq executes req after attaching the auth token header.
+// Allows callers to supply a request with a custom context (e.g. for cancellation).
+func (c *client) makeRequestWithReq(req *http.Request) (*http.Response, error) {
+	apiToken, err := c.tokenManager.Get()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errFailedToGetToken, err)
 	}
 
 	req.Header.Set(headerAuthorization, "Token "+apiToken)

@@ -1,21 +1,26 @@
 package download
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 
 	"switchtube-downloader/internal/helper/dir"
-	"switchtube-downloader/internal/helper/ui/ansi"
 	"switchtube-downloader/internal/helper/ui/input"
 	"switchtube-downloader/internal/helper/ui/progress"
+	"switchtube-downloader/internal/helper/ui/styles"
 	"switchtube-downloader/internal/models"
 	"switchtube-downloader/internal/token"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Base URL and API endpoints for SwitchTube.
@@ -35,6 +40,7 @@ const (
 	videoType
 	channelType
 )
+
 
 var (
 	errFailedToConstructURL        = errors.New("failed to construct URL")
@@ -73,13 +79,15 @@ type channelMetadata struct {
 
 // downloader handles downloading of both videos and channels.
 type downloader struct {
-	client *client               // HTTP client wrapper for making authenticated API requests
-	config models.DownloadConfig // Configuration options for the download operation
+	ctx    context.Context
+	client *client
+	config models.DownloadConfig
 }
 
 // newDownloader creates a new Downloader instance.
-func newDownloader(config models.DownloadConfig, client *client) *downloader {
+func newDownloader(ctx context.Context, config models.DownloadConfig, client *client) *downloader {
 	return &downloader{
+		ctx:    ctx,
 		config: config,
 		client: client,
 	}
@@ -184,8 +192,17 @@ func (d *downloader) downloadVideoStream(endpoint string, file *os.File, rowInde
 		return fmt.Errorf("%w: %w", errFailedToConstructURL, err)
 	}
 
-	resp, err := d.client.makeRequest(fullURL)
+	req, err := http.NewRequestWithContext(d.ctx, http.MethodGet, fullURL, http.NoBody)
 	if err != nil {
+		return fmt.Errorf("%w: %w", errFailedToFetchVideoStream, err)
+	}
+
+	resp, err := d.client.makeRequestWithReq(req)
+	if err != nil {
+		if d.ctx.Err() != nil {
+			return d.ctx.Err() // clean abort, not a real error
+		}
+
 		return fmt.Errorf("%w: %w", errFailedToFetchVideoStream, err)
 	}
 
@@ -204,6 +221,10 @@ func (d *downloader) downloadVideoStream(endpoint string, file *os.File, rowInde
 
 	err = progress.BarWithRow(resp.Body, file, resp.ContentLength, file.Name(), rowIndex, maxFilenameWidth)
 	if err != nil {
+		if d.ctx.Err() != nil {
+			return d.ctx.Err()
+		}
+
 		return fmt.Errorf("%w: %w", errFailedToCopyVideoData, err)
 	}
 
@@ -222,10 +243,18 @@ func (d *downloader) downloadVideosParallel(videos []models.Video, indices []int
 	numVideos := len(indices)
 
 	for i, idx := range indices {
+		if d.ctx.Err() != nil {
+			break // context already cancelled
+		}
+
 		wg.Add(1)
 
 		go func(videoIdx int, rowIndex int) {
 			defer wg.Done()
+
+			if d.ctx.Err() != nil {
+				return // aborted before we started
+			}
 
 			video := videos[videoIdx]
 
@@ -247,9 +276,11 @@ func (d *downloader) downloadVideosParallel(videos []models.Video, indices []int
 			mutex.Unlock()
 
 			if err := d.downloadVideo(video.ID, false, rowIndex, longestVideoName); err != nil {
-				mutex.Lock()
-				failed = append(failed, video.Title)
-				mutex.Unlock()
+				if d.ctx.Err() == nil { // only record failure if not cancelled
+					mutex.Lock()
+					failed = append(failed, video.Title)
+					mutex.Unlock()
+				}
 			}
 		}(idx, numVideos-i)
 	}
@@ -363,11 +394,16 @@ func (d *downloader) prepareDownloads(videos []models.Video, indices []int, fail
 
 // printResults displays the download results summary.
 func (d *downloader) printResults(selectedCount int, failed []string) {
+	if d.ctx.Err() != nil {
+		fmt.Printf("\n%s Download aborted by user\n", styles.Error.Render("[ERROR]"))
+		return
+	}
+
 	successCount := selectedCount - len(failed)
 	fmt.Printf("\nDownload complete! %d/%d videos successful\n", successCount, selectedCount)
 
 	if len(failed) > 0 {
-		fmt.Printf("%s[ERROR]%s Failed downloads:\n", ansi.Error, ansi.Reset)
+		fmt.Printf("%s Failed downloads:\n", styles.Error.Render("[ERROR]"))
 
 		for _, title := range failed {
 			fmt.Printf("  - %s\n", title)
@@ -398,6 +434,18 @@ func (d *downloader) processDownloads(videos []models.Video, indices []int, long
 // Download initiates the download process based on the provided configuration.
 // Extracts ID and type from media field, then downloads video or channel accordingly.
 func Download(config models.DownloadConfig) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Cancel context on SIGINT (Ctrl+C) for clean abort
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigCh
+		cancel()
+	}()
+
 	id, downloadType, err := extractIDAndType(config.Media)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToExtractType, err)
@@ -405,12 +453,16 @@ func Download(config models.DownloadConfig) error {
 
 	tokenMgr := token.NewTokenManager()
 	client := newClient(tokenMgr)
-	downloader := newDownloader(config, client)
+	downloader := newDownloader(ctx, config, client)
 
 	switch downloadType {
 	case videoType, unknownType:
 		if err = downloader.downloadVideo(id, true, 0, 0); err == nil {
 			return nil
+		}
+
+		if ctx.Err() != nil {
+			return input.ErrUserAbort
 		}
 
 		if downloadType == videoType || errors.Is(err, dir.ErrFailedToCreateFile) {
@@ -420,6 +472,10 @@ func Download(config models.DownloadConfig) error {
 		fallthrough // Fallthrough if type is unknown and try as channel
 	case channelType:
 		if err = downloader.downloadChannel(id); err != nil {
+			if ctx.Err() != nil {
+				return input.ErrUserAbort
+			}
+
 			if downloadType == unknownType {
 				return fmt.Errorf("%w", errInvalidID)
 			}

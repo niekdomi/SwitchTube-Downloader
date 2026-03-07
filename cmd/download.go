@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
 // init initializes the download command and adds it to the root command with its flags.
 func init() {
 	rootCmd.AddCommand(downloadCmd)

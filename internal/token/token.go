@@ -83,6 +83,20 @@ func (tm *Manager) Delete() error {
 	return nil
 }
 
+// Get retrieves the access token from the system keyring and validates it.
+func (tm *Manager) Get() (string, error) {
+	token, err := tm.GetRaw()
+	if err != nil {
+		return "", err
+	}
+
+	if err := tm.validateToken(token); err != nil {
+		return token, fmt.Errorf("stored token is invalid: %w", err)
+	}
+
+	return token, nil
+}
+
 // GetRaw retrieves the token from the keyring without any validation.
 // Use this when you just need the raw token value.
 func (tm *Manager) GetRaw() (string, error) {
@@ -103,30 +117,18 @@ func (tm *Manager) GetRaw() (string, error) {
 	return token, nil
 }
 
-// Get retrieves the access token from the system keyring and validates it.
-func (tm *Manager) Get() (string, error) {
-	token, err := tm.GetRaw()
-	if err != nil {
-		return "", err
-	}
-
-	if err := tm.validateToken(token); err != nil {
-		return token, fmt.Errorf("stored token is invalid: %w", err)
-	}
-
-	return token, nil
-}
-
 // GetAndDisplay retrieves the token and shows it in the info table.
 func (tm *Manager) GetAndDisplay() error {
-	var token string
-	var validateErr error
+	var (
+		token       string
+		validateErr error
+	)
 
 	_ = spinner.New().
 		Title("Validating token...").
 		Context(context.Background()).
 		ActionWithErr(func(_ context.Context) error {
-			token, validateErr = tm.Get()
+			token, validateErr = tm.Get() //nolint:contextcheck // doesn't accept context
 
 			return nil
 		}).
@@ -160,6 +162,7 @@ func (tm *Manager) Set() error {
 			Context(context.Background()).
 			ActionWithErr(func(_ context.Context) error {
 				validateErr = tm.validateToken(token)
+
 				return nil
 			}).
 			Run()
@@ -189,8 +192,10 @@ func (tm *Manager) Set() error {
 
 // Validate validates the stored token and displays its status.
 func (tm *Manager) Validate() error {
-	var token string
-	var validateErr error
+	var (
+		token       string
+		validateErr error
+	)
 
 	if !term.IsTerminal(os.Stdout.Fd()) {
 		token, validateErr = tm.Get()
@@ -199,7 +204,8 @@ func (tm *Manager) Validate() error {
 			Title("Validating token...").
 			Context(context.Background()).
 			ActionWithErr(func(_ context.Context) error {
-				token, validateErr = tm.Get()
+				token, validateErr = tm.Get() //nolint:contextcheck // doesn't accept context
+
 				return nil
 			}).
 			Run()

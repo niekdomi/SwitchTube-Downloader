@@ -13,10 +13,10 @@ import (
 const createAccessTokenURL = "https://tube.switch.ch/access_tokens"
 
 var (
-	borderStyle  = lipgloss.NewStyle().Foreground(styles.Cyan)
-	headerStyle  = lipgloss.NewStyle().Bold(true).Padding(0, 1)
-	cellStyle    = lipgloss.NewStyle().Padding(0, 1)
-	keyStyle     = cellStyle.Foreground(styles.Cyan)
+	borderStyle = lipgloss.NewStyle().Foreground(styles.Cyan)
+	headerStyle = lipgloss.NewStyle().Bold(true).Padding(0, 1)
+	cellStyle   = lipgloss.NewStyle().Padding(0, 1)
+	keyStyle    = cellStyle.Foreground(styles.Cyan)
 )
 
 func newTable() *table.Table {

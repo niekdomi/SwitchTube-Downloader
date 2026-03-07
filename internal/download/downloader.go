@@ -41,7 +41,6 @@ const (
 	channelType
 )
 
-
 var (
 	errFailedToConstructURL        = errors.New("failed to construct URL")
 	errFailedToCopyVideoData       = errors.New("failed to copy video data")
@@ -396,6 +395,7 @@ func (d *downloader) prepareDownloads(videos []models.Video, indices []int, fail
 func (d *downloader) printResults(selectedCount int, failed []string) {
 	if d.ctx.Err() != nil {
 		fmt.Printf("\n%s Download aborted by user\n", styles.Error.Render("[ERROR]"))
+
 		return
 	}
 

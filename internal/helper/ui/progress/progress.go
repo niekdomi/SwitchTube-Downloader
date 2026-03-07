@@ -71,5 +71,6 @@ func renderProgressBar(percentage float64, bytePerSec float64, filenameWidth int
 	renderedBar := pb.ViewAs(percentage / 100.0)
 
 	displaySpeed, unit := formatSpeed(bytePerSec)
+
 	return fmt.Sprintf("%s %5.1f%% %s", renderedBar, percentage, styleDim.Render(fmt.Sprintf("%6.2f %s", displaySpeed, unit)))
 }

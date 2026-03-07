@@ -1,0 +1,85 @@
+internal/download/downloader.go:82:2: found a struct that contains a context.Context field (containedctx)
+	ctx    context.Context
+	^
+internal/token/token.go:129:31: Function `Get->validateToken` should pass the context parameter (contextcheck)
+			token, validateErr = tm.Get()
+			                           ^
+internal/token/token.go:162:35: Function `validateToken` should pass the context parameter (contextcheck)
+				validateErr = tm.validateToken(token)
+				                              ^
+internal/token/token.go:202:32: Function `Get->validateToken` should pass the context parameter (contextcheck)
+				token, validateErr = tm.Get()
+				                           ^
+internal/download/downloader.go:436:1: calculated cyclomatic complexity for function Download is 11, max is 10 (cyclop)
+func Download(config models.DownloadConfig) error {
+^
+cmd/token.go:14:43: log.Options is missing fields TimeFunction, TimeFormat, Level, Prefix, CallerFormatter, CallerOffset, Fields, Formatter (exhaustruct)
+var log = charm.NewWithOptions(os.Stderr, charm.Options{
+                                          ^
+internal/token/token.go:34:43: log.Options is missing fields TimeFunction, TimeFormat, Level, Prefix, CallerFormatter, CallerOffset, Fields, Formatter (exhaustruct)
+var log = charm.NewWithOptions(os.Stderr, charm.Options{
+                                          ^
+internal/token/token.go:107:1: method "Get" for struct "Manager" should be placed before method "GetRaw" (funcorder)
+func (tm *Manager) Get() (string, error) {
+^
+internal/token/token.go:274:26: whyNoLint: include an explanation for nolint directive (gocritic)
+	client := &http.Client{ //nolint:exhaustruct
+	                        ^
+cmd/download.go:12:1: File is not properly formatted (gofumpt)
+
+^
+internal/download/downloader.go:44:1: File is not properly formatted (gofumpt)
+
+^
+internal/helper/ui/table/table.go:16:1: File is not properly formatted (gofumpt)
+	borderStyle  = lipgloss.NewStyle().Foreground(styles.Cyan)
+^
+internal/download/client.go:87:26: G704: SSRF via taint analysis (gosec)
+	resp, err := c.client.Do(req)
+	                        ^
+internal/helper/ui/progress/progress.go:71:40: Magic number: 100.0, in <argument> detected (mnd)
+	renderedBar := pb.ViewAs(percentage / 100.0)
+	                                      ^
+internal/helper/ui/progress/progress.go:74:2: return with no blank line before (nlreturn)
+	return fmt.Sprintf("%s %5.1f%% %s", renderedBar, percentage, styleDim.Render(fmt.Sprintf("%6.2f %s", displaySpeed, unit)))
+	^
+internal/token/token.go:163:5: return with no blank line before (nlreturn)
+				return nil
+				^
+internal/token/token.go:203:5: return with no blank line before (nlreturn)
+				return nil
+				^
+internal/download/downloader.go:203:11: error returned from interface method should be wrapped: sig: func (context.Context).Err() error (wrapcheck)
+			return d.ctx.Err() // clean abort, not a real error
+			       ^
+internal/download/downloader.go:225:11: error returned from interface method should be wrapped: sig: func (context.Context).Err() error (wrapcheck)
+			return d.ctx.Err()
+			       ^
+internal/helper/ui/input/interactive.go:54:15: error returned from external package is unwrapped: sig: func (*github.com/charmbracelet/huh.Form).Run() error (wrapcheck)
+		return nil, err
+		            ^
+internal/helper/ui/input/prompt.go:28:2: missing whitespace above this line (never cuddle decl) (wsl_v5)
+	var confirmed bool
+	^
+internal/token/token.go:123:2: missing whitespace above this line (never cuddle decl) (wsl_v5)
+	var validateErr error
+	^
+internal/token/token.go:193:2: missing whitespace above this line (never cuddle decl) (wsl_v5)
+	var validateErr error
+	^
+internal/token/token.go:195:2: missing whitespace above this line (too many statements above if) (wsl_v5)
+	if !term.IsTerminal(os.Stdout.Fd()) {
+	^
+24 issues:
+* containedctx: 1
+* contextcheck: 3
+* cyclop: 1
+* exhaustruct: 2
+* funcorder: 1
+* gocritic: 1
+* gofumpt: 3
+* gosec: 1
+* mnd: 1
+* nlreturn: 3
+* wrapcheck: 3
+* wsl_v5: 4

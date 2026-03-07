@@ -25,6 +25,7 @@ func Input(prompt string) string {
 // Confirm prompts the user for a yes/no confirmation and returns true for yes.
 func Confirm(format string, args ...any) bool {
 	msg := fmt.Sprintf(format, args...)
+
 	var confirmed bool
 
 	err := huh.NewForm(

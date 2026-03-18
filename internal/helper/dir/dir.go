@@ -15,7 +15,7 @@ import (
 const (
 	// File and directory permissions.
 	dirPermissions = 0o755
-	// maxFilenameLen is the maximum filename length on most filesystems (ext4, NTFS, APFS).
+	// maxFilenameLen is the maximum filename length on most filesystems.
 	maxFilenameLen = 255
 )
 

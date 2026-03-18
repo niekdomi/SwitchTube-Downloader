@@ -1,12 +1,13 @@
 # SwitchTube-Downloader: A simple CLI to download SwitchTube Videos
 
-**SwitchTube-Downloader** is a lightweight command-line tool, designed to easily
+**SwitchTube-Downloader** is a simple command-line tool, designed to easily
 download videos from [SwitchTube](https://tube.switch.ch/).
 
 ## Getting Started
 
-1. **Download the binary**: Visit the [releases page](https://github.com/niekdomi/SwitchTube-Downloader/releases)
-   to obtain the appropriate binary for your operating system (Linux, MacOS, Windows).
+1. **Download the binary**: Visit the [releases
+   page](https://github.com/niekdomi/SwitchTube-Downloader/releases) to obtain
+   the appropriate binary for your operating system (Linux, MacOS, Windows).
 
    Arch-Linux users can also use the AUR package:
 
@@ -16,20 +17,24 @@ download videos from [SwitchTube](https://tube.switch.ch/).
 
    **NOTE**: The AUR executable is named `swdl` for convenience.
 
-2. **Make executable**: After downloading, ensure the binary is executable. For Linux and MacOS, run:
+2. **Make executable**: After downloading, ensure the binary is executable. For
+   Linux and MacOS, run:
 
    ```bash
    chmod +x switchtube-downloader
    ```
 
-3. **Usage**: Run `./switchtube-downloader` to access the help menu, which provides clear guidance on available commands.
+3. **Usage**: Run `./switchtube-downloader` to access the help menu, which
+   provides clear guidance on available commands.
 
-4. **Create access token**: A SwitchTube access token is required. Generate one [here](https://tube.switch.ch/access_tokens) to authenticate your requests.
+4. **Create access token**: A SwitchTube access token is required. Generate one
+   [here](https://tube.switch.ch/access_tokens) to authenticate your requests.
 
 <details>
   <summary>[Click me] for detailed usage instructions</summary>
 
-Running the SwitchTube Downloader without arguments displays available commands:
+Running the SwitchTube Downloader without arguments displays available
+commands:
 
 ```
 ./switchtube-downloader
@@ -55,9 +60,11 @@ Use "switchtube-downloader [command] --help" for more information about a comman
 To download a video or channel, use the `download` command with either the
 video/channel ID or its full URL: `./switchtube-downloader download {id or url}`
 
-For example, for the URL `https://tube.switch.ch/channels/dh0sX6Fj1I`, the ID is `dh0sX6Fj1I`. You can use either:
+For example, for the URL `https://tube.switch.ch/channels/dh0sX6Fj1I`, the ID
+is `dh0sX6Fj1I`. You can use either:
 
-- **URL**: More convenient, directly copied from the browser: `./switchtube-downloader download https://tube.switch.ch/channels/dh0sX6Fj1I`
+- **URL**: More convenient, directly copied from the browser:
+  `./switchtube-downloader download https://tube.switch.ch/channels/dh0sX6Fj1I`
 
 - **ID**: Shorter, but requires extracting the ID: `./switchtube-downloader download dh0sX6Fj1I`
 

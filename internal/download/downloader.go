@@ -1,21 +1,26 @@
 package download
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 
 	"switchtube-downloader/internal/helper/dir"
-	"switchtube-downloader/internal/helper/ui/ansi"
 	"switchtube-downloader/internal/helper/ui/input"
 	"switchtube-downloader/internal/helper/ui/progress"
+	"switchtube-downloader/internal/helper/ui/styles"
 	"switchtube-downloader/internal/models"
 	"switchtube-downloader/internal/token"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Base URL and API endpoints for SwitchTube.
@@ -73,8 +78,8 @@ type channelMetadata struct {
 
 // downloader handles downloading of both videos and channels.
 type downloader struct {
-	client *client               // HTTP client wrapper for making authenticated API requests
-	config models.DownloadConfig // Configuration options for the download operation
+	client *client
+	config models.DownloadConfig
 }
 
 // newDownloader creates a new Downloader instance.
@@ -87,13 +92,13 @@ func newDownloader(config models.DownloadConfig, client *client) *downloader {
 
 // downloadChannel downloads selected videos from a channel.
 // Fetches channel info, displays video list, prompts for selection, and downloads chosen videos.
-func (d *downloader) downloadChannel(channelID string) error {
-	channelInfo, err := d.getChannelMetadata(channelID)
+func (d *downloader) downloadChannel(ctx context.Context, channelID string) error {
+	channelInfo, err := d.getChannelMetadata(ctx, channelID)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToGetChannelInfo, err)
 	}
 
-	videos, err := d.getChannelVideos(channelID)
+	videos, err := d.getChannelVideos(ctx, channelID)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToGetChannelVideos, err)
 	}
@@ -124,32 +129,32 @@ func (d *downloader) downloadChannel(channelID string) error {
 
 	d.config.OutputDir = folderName
 	fmt.Printf("\r\nDownloading to folder: %s\n\n", folderName)
-	d.downloadSelectedVideos(videos, selectedIndices)
+	d.downloadSelectedVideos(ctx, videos, selectedIndices)
 
 	return nil
 }
 
 // downloadSelectedVideos downloads the videos at the given indices and prints a summary.
-func (d *downloader) downloadSelectedVideos(videos []models.Video, selectedIndices []int) {
+func (d *downloader) downloadSelectedVideos(ctx context.Context, videos []models.Video, selectedIndices []int) {
 	var failed []string
 
-	videosToDownload, longestVideoName := d.prepareDownloads(videos, selectedIndices, &failed)
+	videosToDownload, longestVideoName := d.prepareDownloads(ctx, videos, selectedIndices, &failed)
 	if len(videosToDownload) > 0 {
-		failed = append(failed, d.processDownloads(videos, videosToDownload, longestVideoName)...)
+		failed = append(failed, d.processDownloads(ctx, videos, videosToDownload, longestVideoName)...)
 	}
 
-	d.printResults(len(selectedIndices), failed)
+	d.printResults(ctx, len(selectedIndices), failed)
 }
 
 // downloadVideo downloads a single video by ID. Returns error if download fails.
 // rowIndex and maxFilenameWidth are used for multi-file progress display alignment.
-func (d *downloader) downloadVideo(videoID string, checkExists bool, rowIndex int, maxFilenameWidth int) error {
-	video, err := d.getVideoMetadata(videoID)
+func (d *downloader) downloadVideo(ctx context.Context, videoID string, checkExists bool, rowIndex int, maxFilenameWidth int) error {
+	video, err := d.getVideoMetadata(ctx, videoID)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToGetVideoInfo, err)
 	}
 
-	variants, err := d.getVideoVariants(videoID)
+	variants, err := d.getVideoVariants(ctx, videoID)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToGetVideoVariants, err)
 	}
@@ -168,8 +173,14 @@ func (d *downloader) downloadVideo(videoID string, checkExists bool, rowIndex in
 		return fmt.Errorf("%w: %w", errFailedToCreateVideoFile, err)
 	}
 
+	defer func() {
+		if err := file.Close(); err != nil {
+			fmt.Printf("Warning: failed to close video file: %v\n", err)
+		}
+	}()
+
 	// Download the video
-	err = d.downloadVideoStream(variants[0].Path, file, rowIndex, maxFilenameWidth)
+	err = d.downloadVideoStream(ctx, variants[0].Path, file, rowIndex, maxFilenameWidth)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToDownloadVideo, err)
 	}
@@ -178,14 +189,23 @@ func (d *downloader) downloadVideo(videoID string, checkExists bool, rowIndex in
 }
 
 // downloadVideoStream downloads video data from endpoint to file with progress tracking.
-func (d *downloader) downloadVideoStream(endpoint string, file *os.File, rowIndex int, maxFilenameWidth int) error {
+func (d *downloader) downloadVideoStream(ctx context.Context, endpoint string, file *os.File, rowIndex int, maxFilenameWidth int) error {
 	fullURL, err := url.JoinPath(baseURL, endpoint)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToConstructURL, err)
 	}
 
-	resp, err := d.client.makeRequest(fullURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, http.NoBody)
 	if err != nil {
+		return fmt.Errorf("%w: %w", errFailedToFetchVideoStream, err)
+	}
+
+	resp, err := d.client.makeRequestWithReq(req)
+	if err != nil {
+		if ctx.Err() != nil {
+			return fmt.Errorf("download cancelled: %w", ctx.Err())
+		}
+
 		return fmt.Errorf("%w: %w", errFailedToFetchVideoStream, err)
 	}
 
@@ -204,6 +224,10 @@ func (d *downloader) downloadVideoStream(endpoint string, file *os.File, rowInde
 
 	err = progress.BarWithRow(resp.Body, file, resp.ContentLength, file.Name(), rowIndex, maxFilenameWidth)
 	if err != nil {
+		if ctx.Err() != nil {
+			return fmt.Errorf("download cancelled: %w", ctx.Err())
+		}
+
 		return fmt.Errorf("%w: %w", errFailedToCopyVideoData, err)
 	}
 
@@ -212,7 +236,7 @@ func (d *downloader) downloadVideoStream(endpoint string, file *os.File, rowInde
 
 // downloadVideosParallel downloads multiple videos concurrently.
 // Returns slice of failed video titles.
-func (d *downloader) downloadVideosParallel(videos []models.Video, indices []int, longestVideoName int) []string {
+func (d *downloader) downloadVideosParallel(ctx context.Context, videos []models.Video, indices []int, longestVideoName int) []string {
 	var (
 		failed []string
 		wg     sync.WaitGroup
@@ -222,15 +246,23 @@ func (d *downloader) downloadVideosParallel(videos []models.Video, indices []int
 	numVideos := len(indices)
 
 	for i, idx := range indices {
+		if ctx.Err() != nil {
+			break // context already cancelled
+		}
+
 		wg.Add(1)
 
 		go func(videoIdx int, rowIndex int) {
 			defer wg.Done()
 
+			if ctx.Err() != nil {
+				return // aborted before we started
+			}
+
 			video := videos[videoIdx]
 
 			// Get variants to calculate filename width
-			variants, err := d.getVideoVariants(video.ID)
+			variants, err := d.getVideoVariants(ctx, video.ID)
 			if err != nil || len(variants) == 0 {
 				mutex.Lock()
 				failed = append(failed, video.Title)
@@ -244,12 +276,15 @@ func (d *downloader) downloadVideosParallel(videos []models.Video, indices []int
 
 			mutex.Lock()
 			longestVideoName = max(len(basename), longestVideoName)
+			currentLongest := longestVideoName
 			mutex.Unlock()
 
-			if err := d.downloadVideo(video.ID, false, rowIndex, longestVideoName); err != nil {
-				mutex.Lock()
-				failed = append(failed, video.Title)
-				mutex.Unlock()
+			if err := d.downloadVideo(ctx, video.ID, false, rowIndex, currentLongest); err != nil {
+				if ctx.Err() == nil { // only record failure if not cancelled
+					mutex.Lock()
+					failed = append(failed, video.Title)
+					mutex.Unlock()
+				}
 			}
 		}(idx, numVideos-i)
 	}
@@ -261,14 +296,14 @@ func (d *downloader) downloadVideosParallel(videos []models.Video, indices []int
 
 // getChannelMetadata retrieves channel metadata from the API.
 // Returns channel metadata including name.
-func (d *downloader) getChannelMetadata(channelID string) (*channelMetadata, error) {
+func (d *downloader) getChannelMetadata(ctx context.Context, channelID string) (*channelMetadata, error) {
 	fullURL, err := url.JoinPath(baseURL, channelAPI, channelID)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errFailedToConstructURL, err)
 	}
 
 	var data channelMetadata
-	if err := d.client.makeJSONRequest(fullURL, &data); err != nil {
+	if err := d.client.makeJSONRequest(ctx, fullURL, &data); err != nil {
 		return nil, fmt.Errorf("%w: %w", errFailedToDecodeChannelMeta, err)
 	}
 
@@ -277,14 +312,14 @@ func (d *downloader) getChannelMetadata(channelID string) (*channelMetadata, err
 
 // getChannelVideos retrieves all videos from a channel.
 // Returns slice of videos with their IDs, titles, and episode numbers.
-func (d *downloader) getChannelVideos(channelID string) ([]models.Video, error) {
+func (d *downloader) getChannelVideos(ctx context.Context, channelID string) ([]models.Video, error) {
 	fullURL, err := url.JoinPath(baseURL, channelAPI, channelID, "videos")
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errFailedToConstructURL, err)
 	}
 
 	var videos []models.Video
-	if err := d.client.makeJSONRequest(fullURL, &videos); err != nil {
+	if err := d.client.makeJSONRequest(ctx, fullURL, &videos); err != nil {
 		return nil, fmt.Errorf("%w: %w", errFailedToDecodeChannelVideos, err)
 	}
 
@@ -293,14 +328,14 @@ func (d *downloader) getChannelVideos(channelID string) ([]models.Video, error) 
 
 // getVideoMetadata retrieves video metadata from the API.
 // Returns video info including ID, title, and episode number.
-func (d *downloader) getVideoMetadata(videoID string) (*models.Video, error) {
+func (d *downloader) getVideoMetadata(ctx context.Context, videoID string) (*models.Video, error) {
 	fullURL, err := url.JoinPath(baseURL, videoAPI, videoID)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errFailedToConstructURL, err)
 	}
 
 	var videoData models.Video
-	if err := d.client.makeJSONRequest(fullURL, &videoData); err != nil {
+	if err := d.client.makeJSONRequest(ctx, fullURL, &videoData); err != nil {
 		return nil, fmt.Errorf("%w: %w", errFailedToDecodeVideoMeta, err)
 	}
 
@@ -309,14 +344,14 @@ func (d *downloader) getVideoMetadata(videoID string) (*models.Video, error) {
 
 // getVideoVariants retrieves available video variants from the API.
 // Returns slice of variants with download paths and media types.
-func (d *downloader) getVideoVariants(videoID string) ([]videoVariant, error) {
+func (d *downloader) getVideoVariants(ctx context.Context, videoID string) ([]videoVariant, error) {
 	fullURL, err := url.JoinPath(baseURL, videoAPI, videoID, "video_variants")
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errFailedToConstructURL, err)
 	}
 
 	var variants []videoVariant
-	if err := d.client.makeJSONRequest(fullURL, &variants); err != nil {
+	if err := d.client.makeJSONRequest(ctx, fullURL, &variants); err != nil {
 		return nil, fmt.Errorf("%w: %w", errFailedToDecodeVariants, err)
 	}
 
@@ -325,7 +360,7 @@ func (d *downloader) getVideoVariants(videoID string) ([]videoVariant, error) {
 
 // prepareDownloads checks which videos need to be downloaded and validates their availability.
 // Returns indices of videos to download and longest filename width for alignment.
-func (d *downloader) prepareDownloads(videos []models.Video, indices []int, failed *[]string) ([]int, int) {
+func (d *downloader) prepareDownloads(ctx context.Context, videos []models.Video, indices []int, failed *[]string) ([]int, int) {
 	var (
 		videosToDownload []int
 		longestVideoName int
@@ -334,7 +369,7 @@ func (d *downloader) prepareDownloads(videos []models.Video, indices []int, fail
 	for _, idx := range indices {
 		video := videos[idx]
 
-		variants, err := d.getVideoVariants(video.ID)
+		variants, err := d.getVideoVariants(ctx, video.ID)
 		if err != nil {
 			fmt.Printf("\nFailed to get video variants for %s: %v\n", video.Title, err)
 			*failed = append(*failed, video.Title)
@@ -362,12 +397,18 @@ func (d *downloader) prepareDownloads(videos []models.Video, indices []int, fail
 }
 
 // printResults displays the download results summary.
-func (d *downloader) printResults(selectedCount int, failed []string) {
+func (d *downloader) printResults(ctx context.Context, selectedCount int, failed []string) {
+	if ctx.Err() != nil {
+		fmt.Printf("\n%s Download aborted by user\n", styles.Error.Render("[ERROR]"))
+
+		return
+	}
+
 	successCount := selectedCount - len(failed)
 	fmt.Printf("\nDownload complete! %d/%d videos successful\n", successCount, selectedCount)
 
 	if len(failed) > 0 {
-		fmt.Printf("%s[ERROR]%s Failed downloads:\n", ansi.Error, ansi.Reset)
+		fmt.Printf("%s Failed downloads:\n", styles.Error.Render("[ERROR]"))
 
 		for _, title := range failed {
 			fmt.Printf("  - %s\n", title)
@@ -377,7 +418,7 @@ func (d *downloader) printResults(selectedCount int, failed []string) {
 
 // processDownloads performs the actual video downloads in parallel.
 // Returns slice of failed video titles.
-func (d *downloader) processDownloads(videos []models.Video, indices []int, longestVideoName int) []string {
+func (d *downloader) processDownloads(ctx context.Context, videos []models.Video, indices []int, longestVideoName int) []string {
 	var failed []string
 
 	numVideos := len(indices)
@@ -388,7 +429,7 @@ func (d *downloader) processDownloads(videos []models.Video, indices []int, long
 		fmt.Println() // Reserve a line for each video
 	}
 
-	failed = d.downloadVideosParallel(videos, indices, longestVideoName)
+	failed = d.downloadVideosParallel(ctx, videos, indices, longestVideoName)
 
 	fmt.Print(ansi.ShowCursor)
 
@@ -398,19 +439,42 @@ func (d *downloader) processDownloads(videos []models.Video, indices []int, long
 // Download initiates the download process based on the provided configuration.
 // Extracts ID and type from media field, then downloads video or channel accordingly.
 func Download(config models.DownloadConfig) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Cancel context on SIGINT (Ctrl+C) for clean abort
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	defer signal.Stop(sigCh)
+
+	go func() {
+		<-sigCh
+		cancel()
+	}()
+
 	id, downloadType, err := extractIDAndType(config.Media)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToExtractType, err)
 	}
 
 	tokenMgr := token.NewTokenManager()
-	client := newClient(tokenMgr)
+
+	client, err := newClient(tokenMgr)
+	if err != nil {
+		return err
+	}
+
 	downloader := newDownloader(config, client)
 
 	switch downloadType {
 	case videoType, unknownType:
-		if err = downloader.downloadVideo(id, true, 0, 0); err == nil {
+		if err = downloader.downloadVideo(ctx, id, true, 0, 0); err == nil {
 			return nil
+		}
+
+		if ctx.Err() != nil {
+			return input.ErrUserAbort
 		}
 
 		if downloadType == videoType || errors.Is(err, dir.ErrFailedToCreateFile) {
@@ -419,7 +483,11 @@ func Download(config models.DownloadConfig) error {
 
 		fallthrough // Fallthrough if type is unknown and try as channel
 	case channelType:
-		if err = downloader.downloadChannel(id); err != nil {
+		if err = downloader.downloadChannel(ctx, id); err != nil {
+			if ctx.Err() != nil {
+				return input.ErrUserAbort
+			}
+
 			if downloadType == unknownType {
 				return fmt.Errorf("%w", errInvalidID)
 			}

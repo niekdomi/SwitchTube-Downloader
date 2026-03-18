@@ -15,6 +15,8 @@ import (
 const (
 	// File and directory permissions.
 	dirPermissions = 0o755
+	// maxFilenameLen is the maximum filename length on most filesystems.
+	maxFilenameLen = 255
 )
 
 var (
@@ -44,6 +46,8 @@ func CreateFilename(title string, mediaType string, episodeNr string, config mod
 	} else {
 		filename = fmt.Sprintf("%s.%s", sanitizedTitle, extension)
 	}
+
+	filename = truncateFilename(filename, maxFilenameLen)
 
 	if config.OutputDir != "" {
 		filename = filepath.Join(config.OutputDir, filename)
@@ -96,6 +100,24 @@ func CreateChannelFolder(channelName string, config models.DownloadConfig) (stri
 	}
 
 	return folderName, nil
+}
+
+// truncateFilename shortens a filename to fit within maxLen bytes while preserving the extension.
+func truncateFilename(filename string, maxLen int) string {
+	if len(filename) <= maxLen {
+		return filename
+	}
+
+	ext := filepath.Ext(filename)
+	name := strings.TrimSuffix(filename, ext)
+
+	// Truncate the name portion, leaving room for the extension
+	maxNameLen := maxLen - len(ext)
+	if maxNameLen <= 0 {
+		return filename[:maxLen]
+	}
+
+	return name[:maxNameLen] + ext
 }
 
 // sanitizeFilename removes or replaces invalid characters in filenames.

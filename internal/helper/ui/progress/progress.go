@@ -68,7 +68,7 @@ func renderProgressBar(percentage float64, bytePerSec float64, filenameWidth int
 	bw := barWidth(filenameWidth)
 
 	pb.Width = bw
-	renderedBar := pb.ViewAs(percentage / 100.0)
+	renderedBar := pb.ViewAs(percentage / 100)
 
 	displaySpeed, unit := formatSpeed(bytePerSec)
 

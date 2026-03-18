@@ -84,17 +84,26 @@ func (tm *Manager) Delete() error {
 }
 
 // Get retrieves the access token from the system keyring and validates it.
-func (tm *Manager) Get() (string, error) {
+func (tm *Manager) Get(ctx context.Context) (string, error) {
 	token, err := tm.GetRaw()
 	if err != nil {
 		return "", err
 	}
 
-	if err := tm.validateToken(token); err != nil {
+	if err := tm.validateToken(ctx, token); err != nil {
 		return token, fmt.Errorf("stored token is invalid: %w", err)
 	}
 
 	return token, nil
+}
+
+// GetAndDisplay retrieves the token and shows it in the info table.
+func (tm *Manager) GetAndDisplay() error {
+	token, validateErr := tm.getValidated("Validating token...")
+
+	tm.displayTokenInfo(token, validateErr == nil)
+
+	return validateErr
 }
 
 // GetRaw retrieves the token from the keyring without any validation.
@@ -117,28 +126,6 @@ func (tm *Manager) GetRaw() (string, error) {
 	return token, nil
 }
 
-// GetAndDisplay retrieves the token and shows it in the info table.
-func (tm *Manager) GetAndDisplay() error {
-	var (
-		token       string
-		validateErr error
-	)
-
-	_ = spinner.New().
-		Title("Validating token...").
-		Context(context.Background()).
-		ActionWithErr(func(_ context.Context) error {
-			token, validateErr = tm.Get() //nolint:contextcheck // doesn't accept context
-
-			return nil
-		}).
-		Run()
-
-	tm.displayTokenInfo(token, validateErr == nil)
-
-	return validateErr
-}
-
 // Set creates and stores a new access token in the system keyring.
 func (tm *Manager) Set() error {
 	if err := tm.checkExistingToken(); err != nil {
@@ -152,22 +139,7 @@ func (tm *Manager) Set() error {
 		return errTokenEmpty
 	}
 
-	var validateErr error
-
-	if !term.IsTerminal(os.Stdout.Fd()) {
-		validateErr = tm.validateToken(token)
-	} else {
-		_ = spinner.New().
-			Title("Validating token with SwitchTube API...").
-			Context(context.Background()).
-			ActionWithErr(func(_ context.Context) error {
-				validateErr = tm.validateToken(token)
-
-				return nil
-			}).
-			Run()
-	}
-
+	validateErr := tm.validateWithSpinner("Validating token with SwitchTube API...", token)
 	if validateErr != nil {
 		log.Error("Token validation failed", "err", validateErr)
 		tm.displayTokenInfo(token, false)
@@ -192,24 +164,7 @@ func (tm *Manager) Set() error {
 
 // Validate validates the stored token and displays its status.
 func (tm *Manager) Validate() error {
-	var (
-		token       string
-		validateErr error
-	)
-
-	if !term.IsTerminal(os.Stdout.Fd()) {
-		token, validateErr = tm.Get()
-	} else {
-		_ = spinner.New().
-			Title("Validating token...").
-			Context(context.Background()).
-			ActionWithErr(func(_ context.Context) error {
-				token, validateErr = tm.Get() //nolint:contextcheck // doesn't accept context
-
-				return nil
-			}).
-			Run()
-	}
+	token, validateErr := tm.getValidated("Validating token...")
 
 	tm.displayTokenInfo(token, validateErr == nil)
 
@@ -218,7 +173,7 @@ func (tm *Manager) Validate() error {
 
 // checkExistingToken checks if a token already exists and prompts for replacement.
 func (tm *Manager) checkExistingToken() error {
-	existingToken, err := tm.Get()
+	existingToken, err := tm.Get(context.Background())
 	if errors.Is(err, errNoToken) {
 		return nil
 	}
@@ -256,6 +211,30 @@ func (tm *Manager) getUsername() (string, error) {
 	return u.Username, nil
 }
 
+// getValidated retrieves and validates the token, using a spinner in terminal mode.
+func (tm *Manager) getValidated(title string) (string, error) {
+	var (
+		token       string
+		validateErr error
+	)
+
+	if !term.IsTerminal(os.Stdout.Fd()) {
+		token, validateErr = tm.Get(context.Background())
+	} else {
+		_ = spinner.New().
+			Title(title).
+			Context(context.Background()).
+			ActionWithErr(func(ctx context.Context) error {
+				token, validateErr = tm.Get(ctx)
+
+				return nil
+			}).
+			Run()
+	}
+
+	return token, validateErr
+}
+
 // maskToken masks the middle portion of the token.
 func (tm *Manager) maskToken(token string) string {
 	if len(token) <= maskThreshold {
@@ -268,8 +247,8 @@ func (tm *Manager) maskToken(token string) string {
 }
 
 // validateToken checks if the token is valid by making a request to the SwitchTube API.
-func (tm *Manager) validateToken(token string) error {
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, profileAPIURL, http.NoBody)
+func (tm *Manager) validateToken(ctx context.Context, token string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, profileAPIURL, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -277,7 +256,7 @@ func (tm *Manager) validateToken(token string) error {
 	req.Header.Set("Authorization", "Token "+token)
 	req.Header.Set("Accept", "application/json")
 
-	client := &http.Client{ //nolint:exhaustruct
+	client := &http.Client{
 		Timeout: requestTimeoutSeconds * time.Second,
 	}
 
@@ -295,4 +274,25 @@ func (tm *Manager) validateToken(token string) error {
 	}
 
 	return nil
+}
+
+// validateWithSpinner validates a token value, using a spinner in terminal mode.
+func (tm *Manager) validateWithSpinner(title string, token string) error {
+	if !term.IsTerminal(os.Stdout.Fd()) {
+		return tm.validateToken(context.Background(), token)
+	}
+
+	var validateErr error
+
+	_ = spinner.New().
+		Title(title).
+		Context(context.Background()).
+		ActionWithErr(func(ctx context.Context) error {
+			validateErr = tm.validateToken(ctx, token)
+
+			return nil
+		}).
+		Run()
+
+	return validateErr
 }

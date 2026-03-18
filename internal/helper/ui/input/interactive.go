@@ -2,6 +2,7 @@ package input
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/charmbracelet/huh"
 
@@ -51,7 +52,7 @@ func SelectVideos(videos []models.Video, all bool, useEpisode bool) ([]int, erro
 			return nil, ErrUserAbort
 		}
 
-		return nil, err
+		return nil, fmt.Errorf("failed to run selection form: %w", err)
 	}
 
 	return selected, nil

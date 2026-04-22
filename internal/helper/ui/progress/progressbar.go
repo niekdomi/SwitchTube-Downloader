@@ -75,14 +75,13 @@ func (pw *progressWriter) displayProgress() {
 		basename += strings.Repeat(" ", pw.longestFilename-len(basename))
 	}
 
+	fmt.Print(ansi.SaveCurrentCursorPosition)
+
 	if pw.rowIndex > 0 {
-		fmt.Print(ansi.SaveCurrentCursorPosition)
 		fmt.Print(ansi.CursorUp(pw.rowIndex))
-		fmt.Printf("\r%s%s %s", ansi.EraseLineRight, basename, renderProgressBar(percentage, speed, pw.longestFilename))
-		fmt.Print(ansi.RestoreCurrentCursorPosition)
-	} else {
-		fmt.Printf("\r%s %s", basename, renderProgressBar(percentage, speed, pw.longestFilename))
 	}
+	fmt.Printf("\r%s%s %s", ansi.EraseLineRight, basename, renderProgressBar(percentage, speed, pw.longestFilename))
+	fmt.Print(ansi.RestoreCurrentCursorPosition)
 }
 
 // BarWithRow copies data from src to dst while displaying a progress bar.

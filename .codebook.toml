@@ -1,0 +1,27 @@
+dictionaries = ["en_us"]
+
+words = [
+  "apiurl",
+  "aur",
+  "bw",
+  "ds",
+  "fj",
+  "gb",
+  "gbps",
+  "goroutines",
+  "kbps",
+  "ldflags",
+  "lipgloss",
+  "mbps",
+  "mkdir",
+  "swdl",
+  "switchtube",
+]
+
+include_paths = [
+  "**/*.go",
+  "**/*.md",
+]
+
+use_global = false
+min_word_length = 0

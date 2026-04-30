@@ -68,7 +68,7 @@ var (
 // videoVariant represents a video download variant.
 type videoVariant struct {
 	Path      string `json:"path"`      // Relative path to the video file on the server
-	MediaType string `json:"mediaType"` // MIME type of the video (e.g., "video/mp4")
+	MediaType string `json:"media_type"` // MIME type of the video (e.g., "video/mp4")
 }
 
 // channelMetadata represents channel metadata.

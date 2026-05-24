@@ -50,14 +50,7 @@ func DisplayInstructions() {
 }
 
 // DisplayTokenInfo shows token information in a table.
-func DisplayTokenInfo(service string, username string, valid bool, maskedToken string, tokenLength int) {
-	var status string
-	if valid {
-		status = styles.Success.Render("Valid")
-	} else {
-		status = styles.Error.Render("Invalid")
-	}
-
+func DisplayTokenInfo(service string, username string, status string, maskedToken string, tokenLength int) {
 	t := newTable().
 		Headers("Field", "Value").
 		Row("Service", service).

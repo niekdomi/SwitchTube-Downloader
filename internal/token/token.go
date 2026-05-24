@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"switchtube-downloader/internal/helper/ui/input"
+	"switchtube-downloader/internal/helper/ui/styles"
 	"switchtube-downloader/internal/helper/ui/table"
 
 	"github.com/charmbracelet/huh/spinner"
@@ -47,6 +48,11 @@ var (
 	errTokenInvalid          = errors.New("token authentication failed")
 )
 
+var (
+	statusValid   = styles.Success.Render("Valid")
+	statusInvalid = styles.Error.Render("Invalid")
+)
+
 // Manager encapsulates token management logic.
 type Manager struct {
 	keyringService string
@@ -59,7 +65,7 @@ func NewTokenManager() *Manager {
 
 // Delete removes the access token from the system keyring.
 func (tm *Manager) Delete() error {
-	username, err := tm.getUsername()
+	username, err := getUsername()
 	if err != nil {
 		return err
 	}
@@ -90,7 +96,7 @@ func (tm *Manager) Get(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	if err := tm.validateToken(ctx, token); err != nil {
+	if err := validateToken(ctx, token); err != nil {
 		return token, fmt.Errorf("stored token is invalid: %w", err)
 	}
 
@@ -101,7 +107,12 @@ func (tm *Manager) Get(ctx context.Context) (string, error) {
 func (tm *Manager) GetAndDisplay() error {
 	token, validateErr := tm.getValidated("Validating token...")
 
-	tm.displayTokenInfo(token, validateErr == nil)
+	status := statusInvalid
+	if validateErr == nil {
+		status = statusValid
+	}
+
+	tm.displayTokenInfo(token, status)
 
 	return validateErr
 }
@@ -109,7 +120,7 @@ func (tm *Manager) GetAndDisplay() error {
 // GetRaw retrieves the token from the keyring without any validation.
 // Use this when you just need the raw token value.
 func (tm *Manager) GetRaw() (string, error) {
-	username, err := tm.getUsername()
+	username, err := getUsername()
 	if err != nil {
 		return "", err
 	}
@@ -139,15 +150,15 @@ func (tm *Manager) Set() error {
 		return errTokenEmpty
 	}
 
-	validateErr := tm.validateWithSpinner("Validating token with SwitchTube API...", token)
+	validateErr := validateWithSpinner("Validating token with SwitchTube API...", token)
 	if validateErr != nil {
 		log.Error("Token validation failed", "err", validateErr)
-		tm.displayTokenInfo(token, false)
+		tm.displayTokenInfo(token, statusInvalid)
 
 		return validateErr
 	}
 
-	username, err := tm.getUsername()
+	username, err := getUsername()
 	if err != nil {
 		return err
 	}
@@ -156,7 +167,7 @@ func (tm *Manager) Set() error {
 		return fmt.Errorf("failed to store token: %w", err)
 	}
 
-	tm.displayTokenInfo(token, true)
+	tm.displayTokenInfo(token, statusValid)
 	log.Info("Token is valid and successfully stored in keyring")
 
 	return nil
@@ -166,7 +177,12 @@ func (tm *Manager) Set() error {
 func (tm *Manager) Validate() error {
 	token, validateErr := tm.getValidated("Validating token...")
 
-	tm.displayTokenInfo(token, validateErr == nil)
+	status := statusInvalid
+	if validateErr == nil {
+		status = statusValid
+	}
+
+	tm.displayTokenInfo(token, status)
 
 	return validateErr
 }
@@ -178,7 +194,12 @@ func (tm *Manager) checkExistingToken() error {
 		return nil
 	}
 
-	tm.displayTokenInfo(existingToken, err == nil)
+	existingStatus := statusInvalid
+	if err == nil {
+		existingStatus = statusValid
+	}
+
+	tm.displayTokenInfo(existingToken, existingStatus)
 
 	fmt.Println()
 
@@ -192,23 +213,13 @@ func (tm *Manager) checkExistingToken() error {
 }
 
 // displayTokenInfo shows information about the token in a table.
-func (tm *Manager) displayTokenInfo(token string, valid bool) {
-	username, err := tm.getUsername()
+func (tm *Manager) displayTokenInfo(token string, status string) {
+	username, err := getUsername()
 	if err != nil {
 		return
 	}
 
-	table.DisplayTokenInfo(tm.keyringService, username, valid, tm.maskToken(token), len(token))
-}
-
-// getUsername returns the current system username.
-func (tm *Manager) getUsername() (string, error) {
-	u, err := user.Current()
-	if err != nil {
-		return "", fmt.Errorf("failed to get current user: %w", err)
-	}
-
-	return u.Username, nil
+	table.DisplayTokenInfo(tm.keyringService, username, status, maskToken(token), len(token))
 }
 
 // getValidated retrieves and validates the token, using a spinner in terminal mode.
@@ -235,8 +246,39 @@ func (tm *Manager) getValidated(title string) (string, error) {
 	return token, validateErr
 }
 
+// validateWithSpinner validates a token value, using a spinner in terminal mode.
+func validateWithSpinner(title string, token string) error {
+	if !term.IsTerminal(os.Stdout.Fd()) {
+		return validateToken(context.Background(), token)
+	}
+
+	var validateErr error
+
+	_ = spinner.New().
+		Title(title).
+		Context(context.Background()).
+		ActionWithErr(func(ctx context.Context) error {
+			validateErr = validateToken(ctx, token)
+
+			return nil
+		}).
+		Run()
+
+	return validateErr
+}
+
+// getUsername returns the current system username.
+func getUsername() (string, error) {
+	u, err := user.Current()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current user: %w", err)
+	}
+
+	return u.Username, nil
+}
+
 // maskToken masks the middle portion of the token.
-func (tm *Manager) maskToken(token string) string {
+func maskToken(token string) string {
 	if len(token) <= maskThreshold {
 		return strings.Repeat("*", len(token))
 	}
@@ -247,7 +289,7 @@ func (tm *Manager) maskToken(token string) string {
 }
 
 // validateToken checks if the token is valid by making a request to the SwitchTube API.
-func (tm *Manager) validateToken(ctx context.Context, token string) error {
+func validateToken(ctx context.Context, token string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, profileAPIURL, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
@@ -274,25 +316,4 @@ func (tm *Manager) validateToken(ctx context.Context, token string) error {
 	}
 
 	return nil
-}
-
-// validateWithSpinner validates a token value, using a spinner in terminal mode.
-func (tm *Manager) validateWithSpinner(title string, token string) error {
-	if !term.IsTerminal(os.Stdout.Fd()) {
-		return tm.validateToken(context.Background(), token)
-	}
-
-	var validateErr error
-
-	_ = spinner.New().
-		Title(title).
-		Context(context.Background()).
-		ActionWithErr(func(ctx context.Context) error {
-			validateErr = tm.validateToken(ctx, token)
-
-			return nil
-		}).
-		Run()
-
-	return validateErr
 }

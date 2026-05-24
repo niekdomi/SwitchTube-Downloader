@@ -82,11 +82,120 @@ type downloader struct {
 	config models.DownloadConfig
 }
 
+// Download initiates the download process based on the provided configuration.
+// Extracts ID and type from media field, then downloads video or channel accordingly.
+func Download(config models.DownloadConfig) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Cancel context on SIGINT (Ctrl+C) for clean abort
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	defer signal.Stop(sigCh)
+
+	go func() {
+		<-sigCh
+		cancel()
+	}()
+
+	id, downloadType, err := extractIDAndType(config.Media)
+	if err != nil {
+		return fmt.Errorf("%w: %w", errFailedToExtractType, err)
+	}
+
+	tokenMgr := token.NewTokenManager()
+
+	client, err := newClient(tokenMgr)
+	if err != nil {
+		return err
+	}
+
+	dl := newDownloader(config, client)
+
+	switch downloadType {
+	case videoType, unknownType:
+		if err = dl.downloadVideoChecked(ctx, id, 0, 0); err == nil {
+			return nil
+		}
+
+		if ctx.Err() != nil {
+			return input.ErrUserAbort
+		}
+
+		if downloadType == videoType || errors.Is(err, dir.ErrFailedToCreateFile) {
+			return fmt.Errorf("%w: %w", errFailedToDownloadVideo, err)
+		}
+
+		fallthrough // Fallthrough if type is unknown and try as channel
+	case channelType:
+		if err = dl.downloadChannel(ctx, id); err != nil {
+			if ctx.Err() != nil {
+				return input.ErrUserAbort
+			}
+
+			if downloadType == unknownType {
+				return fmt.Errorf("%w", errInvalidID)
+			}
+
+			return fmt.Errorf("%w: %w", errFailedToDownloadChannel, err)
+		}
+	default:
+	}
+
+	return nil
+}
+
+// extractIDAndType extracts the ID and determines if it's a video or channel.
+// Returns ID, media type (video/channel/unknown), and error if URL is invalid.
+func extractIDAndType(media string) (string, mediaType, error) {
+	media = strings.TrimSpace(media)
+
+	// If input doesn't start with baseURL, return as unknown type. This is the
+	// case when the Id was passed as an argument
+	prefixAndID, hasPrefix := strings.CutPrefix(media, baseURL)
+	if !hasPrefix {
+		return media, unknownType, nil
+	}
+
+	// Try to extract video ID
+	if id, found := strings.CutPrefix(prefixAndID, videoPrefix); found {
+		return id, videoType, nil
+	}
+
+	// Try to extract channel ID
+	if id, found := strings.CutPrefix(prefixAndID, channelPrefix); found {
+		return id, channelType, nil
+	}
+
+	return prefixAndID, unknownType, errInvalidURL
+}
+
 // newDownloader creates a new Downloader instance.
 func newDownloader(config models.DownloadConfig, client *client) *downloader {
 	return &downloader{
 		config: config,
 		client: client,
+	}
+}
+
+// printResults displays the download results summary.
+func printResults(ctx context.Context, selectedCount int, failed []string) {
+	if ctx.Err() != nil {
+		fmt.Printf("\n%s Download aborted by user\n", styles.Error.Render("[ERROR]"))
+
+		return
+	}
+
+	successCount := selectedCount - len(failed)
+	fmt.Printf("\nDownload complete! %d/%d videos successful\n", successCount, selectedCount)
+
+	if len(failed) > 0 {
+		fmt.Printf("%s Failed downloads:\n", styles.Error.Render("[ERROR]"))
+
+		for _, title := range failed {
+			fmt.Printf("  - %s\n", title)
+		}
 	}
 }
 
@@ -111,7 +220,7 @@ func (d *downloader) downloadChannel(ctx context.Context, channelID string) erro
 
 	fmt.Printf("Found %d videos in channel: %s\n", len(videos), channelInfo.Name)
 
-	selectedIndices, err := input.SelectVideos(videos, d.config.All, d.config.UseEpisode)
+	selectedIndices, err := d.selectVideos(videos)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToSelectVideos, err)
 	}
@@ -143,12 +252,12 @@ func (d *downloader) downloadSelectedVideos(ctx context.Context, videos []models
 		failed = append(failed, d.processDownloads(ctx, videos, videosToDownload, longestVideoName)...)
 	}
 
-	d.printResults(ctx, len(selectedIndices), failed)
+	printResults(ctx, len(selectedIndices), failed)
 }
 
-// downloadVideo downloads a single video by ID. Returns error if download fails.
-// rowIndex and maxFilenameWidth are used for multi-file progress display alignment.
-func (d *downloader) downloadVideo(ctx context.Context, videoID string, checkExists bool, rowIndex int, maxFilenameWidth int) error {
+// downloadVideoChecked fetches video metadata, checks if the file already exists
+// (prompting the user if needed), then downloads.
+func (d *downloader) downloadVideoChecked(ctx context.Context, videoID string, rowIndex int, maxFilenameWidth int) error {
 	video, err := d.getVideoMetadata(ctx, videoID)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToGetVideoInfo, err)
@@ -164,10 +273,15 @@ func (d *downloader) downloadVideo(ctx context.Context, videoID string, checkExi
 	}
 
 	filename := dir.CreateFilename(video.Title, variants[0].MediaType, video.Episode, d.config)
-	if checkExists && !dir.OverwriteVideoIfExists(filename, d.config) {
-		return nil // Skip download
+	if !dir.OverwriteVideoIfExists(filename, d.config) {
+		return nil
 	}
 
+	return d.downloadVideoFile(ctx, variants[0], filename, rowIndex, maxFilenameWidth)
+}
+
+// downloadVideoFile streams a video variant to disk given a pre-computed filename.
+func (d *downloader) downloadVideoFile(ctx context.Context, variant videoVariant, filename string, rowIndex int, maxFilenameWidth int) error {
 	file, err := dir.CreateVideoFile(filename)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToCreateVideoFile, err)
@@ -179,8 +293,7 @@ func (d *downloader) downloadVideo(ctx context.Context, videoID string, checkExi
 		}
 	}()
 
-	// Download the video
-	err = d.downloadVideoStream(ctx, variants[0].Path, file, rowIndex, maxFilenameWidth)
+	err = d.downloadVideoStream(ctx, variant.Path, file, rowIndex, maxFilenameWidth)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errFailedToDownloadVideo, err)
 	}
@@ -250,18 +363,15 @@ func (d *downloader) downloadVideosParallel(ctx context.Context, videos []models
 			break // context already cancelled
 		}
 
-		wg.Add(1)
-
-		go func(videoIdx int, rowIndex int) {
-			defer wg.Done()
+		wg.Go(func() {
+			rowIndex := numVideos - i
 
 			if ctx.Err() != nil {
 				return // aborted before we started
 			}
 
-			video := videos[videoIdx]
+			video := videos[idx]
 
-			// Get variants to calculate filename width
 			variants, err := d.getVideoVariants(ctx, video.ID)
 			if err != nil || len(variants) == 0 {
 				mutex.Lock()
@@ -279,14 +389,14 @@ func (d *downloader) downloadVideosParallel(ctx context.Context, videos []models
 			currentLongest := longestVideoName
 			mutex.Unlock()
 
-			if err := d.downloadVideo(ctx, video.ID, false, rowIndex, currentLongest); err != nil {
+			if err := d.downloadVideoFile(ctx, variants[0], filename, rowIndex, currentLongest); err != nil {
 				if ctx.Err() == nil { // only record failure if not cancelled
 					mutex.Lock()
 					failed = append(failed, video.Title)
 					mutex.Unlock()
 				}
 			}
-		}(idx, numVideos-i)
+		})
 	}
 
 	wg.Wait()
@@ -396,26 +506,6 @@ func (d *downloader) prepareDownloads(ctx context.Context, videos []models.Video
 	return videosToDownload, longestVideoName
 }
 
-// printResults displays the download results summary.
-func (d *downloader) printResults(ctx context.Context, selectedCount int, failed []string) {
-	if ctx.Err() != nil {
-		fmt.Printf("\n%s Download aborted by user\n", styles.Error.Render("[ERROR]"))
-
-		return
-	}
-
-	successCount := selectedCount - len(failed)
-	fmt.Printf("\nDownload complete! %d/%d videos successful\n", successCount, selectedCount)
-
-	if len(failed) > 0 {
-		fmt.Printf("%s Failed downloads:\n", styles.Error.Render("[ERROR]"))
-
-		for _, title := range failed {
-			fmt.Printf("  - %s\n", title)
-		}
-	}
-}
-
 // processDownloads performs the actual video downloads in parallel.
 // Returns slice of failed video titles.
 func (d *downloader) processDownloads(ctx context.Context, videos []models.Video, indices []int, longestVideoName int) []string {
@@ -436,90 +526,31 @@ func (d *downloader) processDownloads(ctx context.Context, videos []models.Video
 	return failed
 }
 
-// Download initiates the download process based on the provided configuration.
-// Extracts ID and type from media field, then downloads video or channel accordingly.
-func Download(config models.DownloadConfig) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+// selectVideos returns indices of selected videos, respecting the All config flag.
+func (d *downloader) selectVideos(videos []models.Video) ([]int, error) {
+	if d.config.All {
+		indices := make([]int, len(videos))
+		for i := range indices {
+			indices[i] = i
+		}
 
-	// Cancel context on SIGINT (Ctrl+C) for clean abort
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
-	defer signal.Stop(sigCh)
-
-	go func() {
-		<-sigCh
-		cancel()
-	}()
-
-	id, downloadType, err := extractIDAndType(config.Media)
-	if err != nil {
-		return fmt.Errorf("%w: %w", errFailedToExtractType, err)
+		return indices, nil
 	}
 
-	tokenMgr := token.NewTokenManager()
-
-	client, err := newClient(tokenMgr)
-	if err != nil {
-		return err
-	}
-
-	downloader := newDownloader(config, client)
-
-	switch downloadType {
-	case videoType, unknownType:
-		if err = downloader.downloadVideo(ctx, id, true, 0, 0); err == nil {
-			return nil
-		}
-
-		if ctx.Err() != nil {
-			return input.ErrUserAbort
-		}
-
-		if downloadType == videoType || errors.Is(err, dir.ErrFailedToCreateFile) {
-			return fmt.Errorf("%w: %w", errFailedToDownloadVideo, err)
-		}
-
-		fallthrough // Fallthrough if type is unknown and try as channel
-	case channelType:
-		if err = downloader.downloadChannel(ctx, id); err != nil {
-			if ctx.Err() != nil {
-				return input.ErrUserAbort
+	episodeColWidth := 0
+	if d.config.UseEpisode {
+		episodeColWidth = len("Episode")
+		for _, v := range videos {
+			if len(v.Episode) > episodeColWidth {
+				episodeColWidth = len(v.Episode)
 			}
-
-			if downloadType == unknownType {
-				return fmt.Errorf("%w", errInvalidID)
-			}
-
-			return fmt.Errorf("%w: %w", errFailedToDownloadChannel, err)
 		}
 	}
 
-	return nil
-}
-
-// extractIDAndType extracts the ID and determines if it's a video or channel.
-// Returns ID, media type (video/channel/unknown), and error if URL is invalid.
-func extractIDAndType(media string) (string, mediaType, error) {
-	media = strings.TrimSpace(media)
-
-	// If input doesn't start with baseURL, return as unknown type. This is the
-	// case when the Id was passed as an argument
-	prefixAndID, hasPrefix := strings.CutPrefix(media, baseURL)
-	if !hasPrefix {
-		return media, unknownType, nil
+	indices, err := input.SelectVideos(videos, episodeColWidth)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
 	}
 
-	// Try to extract video ID
-	if id, found := strings.CutPrefix(prefixAndID, videoPrefix); found {
-		return id, videoType, nil
-	}
-
-	// Try to extract channel ID
-	if id, found := strings.CutPrefix(prefixAndID, channelPrefix); found {
-		return id, channelType, nil
-	}
-
-	return prefixAndID, unknownType, errInvalidURL
+	return indices, nil
 }

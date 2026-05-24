@@ -5,13 +5,16 @@ linters:
   disable:
     - cyclop
     - depguard
-    - forbidigo
     - exhaustruct
+    - forbidigo
     - gochecknoglobals
     - lll
+    - mnd
+    - nlreturn
     - noinlineerr
     - varnamelen
     - wsl
+    - wsl_v5
 
   exclusions:
     rules:
@@ -23,9 +26,6 @@ linters:
           - godoclint
       - path: internal/helper/ui/input/input.go
         linters:
-          - mnd
-      - path: internal/helper/ui/table/table.go
-        linters:
           - errcheck
           - gosec
       - path: _test\.go
@@ -36,6 +36,10 @@ linters:
           - maintidx
           - paralleltest
           - testpackage
+      - path: internal/helper/ui/progress/progress.go
+        text: "the symbol (Kbps|Mbps|Gbps)"
+        linters:
+          - revive
 
   settings:
     exhaustruct:
@@ -63,38 +67,48 @@ linters:
       disable:
         - shadow
 
-    mnd:
-      ignored-numbers:
-        - "100"
-
     revive:
+      enable-all-rules: true
       rules:
-        - name: enforce-repeated-arg-type-style
+        - name: add-constant
           arguments:
-            - func-arg-style: "full"
-              func-ret-val-style: "full"
+            - allow-strs: '"","/","-","%w","%w: %w"'
+              allow-ints: "0,1,100"
+              allow-floats: "0.0"
+        - name: cognitive-complexity
+          disabled: true
+        - name: cyclomatic
+          disabled: true
+        - name: deep-exit
+          disabled: true
         - name: enforce-map-style
           arguments:
             - "make"
         - name: enforce-slice-style
           arguments:
             - "make"
+        - name: enforce-repeated-arg-type-style
+          arguments:
+            - func-arg-style: "full"
+              func-ret-val-style: "full"
         - name: increment-decrement
         - name: inefficient-map-lookup
+        - name: line-length-limit
+          disabled: true
         - name: package-directory-mismatch
         - name: unnecessary-if
+        - name: unexported-naming
+        - name: unhandled-error
+          arguments:
+            - "^fmt.Print"
+            - "^fmt.Printf"
+            - "^fmt.Println"
         - name: unnecessary-format
         - name: useless-fallthrough
 
     unconvert:
       fast-math: true
       safe: true
-
-    wsl_v5:
-      disable:
-        - append
-        - assign
-        - expr
 
 formatters:
   enable:

@@ -1,3 +1,4 @@
+// Package progress provides functions for displaying download progress bars.
 package progress
 
 import (
@@ -10,6 +11,7 @@ import (
 )
 
 const (
+	defaultTerminalWidth = 80
 	// minBarWidth is the minimum progress bar width in characters.
 	minBarWidth = 10
 	// statsWidth is the fixed width of the stats suffix (e.g. " 100.0%  99.99 Gb/s").
@@ -32,7 +34,7 @@ func barWidth(filenameWidth int) int {
 
 	w, _, err := xterm.GetSize(os.Stdout.Fd())
 	if err != nil || w <= 0 {
-		w = 80
+		w = defaultTerminalWidth
 	}
 
 	available := w - filenameWidth - minPrefixGap - statsWidth

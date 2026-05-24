@@ -1,3 +1,4 @@
+// Package cmd contains the CLI command definitions for the SwitchTube downloader.
 package cmd
 
 import (
